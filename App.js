@@ -1,20 +1,29 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import AppNavigator from './src/navigation/AppNavigator';
+import AuthNavigator from './src/navigation/AuthNavigator';
 
-export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
+function RootNavigator() {
+    const { user, loading } = useAuth();
+
+    // While the app is checking for a logged-in user, we can show a loading screen or nothing
+    if (loading) {
+        return null; 
+    }
+
+    return (
+        <NavigationContainer>
+            {/* If a 'user' exists, show the main app. If not, show the login screens. */}
+            {user ? <AppNavigator /> : <AuthNavigator />}
+        </NavigationContainer>
+    );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default function App() {
+    return (
+        <AuthProvider>
+            <RootNavigator />
+        </AuthProvider>
+    );
+}
