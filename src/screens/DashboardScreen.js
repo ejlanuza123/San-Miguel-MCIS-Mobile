@@ -1,6 +1,8 @@
 import React from 'react';
-import { View, Text, Button, SafeAreaView, StyleSheet } from 'react-native';
+import { View, Text, Button, StyleSheet } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { SafeAreaView } from 'react-native-safe-area-context'; // <-- CORRECTED IMPORT
+
 
 const DashboardScreen = () => {
     const { signOut, profile } = useAuth();
