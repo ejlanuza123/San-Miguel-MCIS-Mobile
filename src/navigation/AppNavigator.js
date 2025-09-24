@@ -1,22 +1,18 @@
 import React from 'react';
+import { View, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Svg, { Path } from 'react-native-svg';
-import { View, Text } from 'react-native';
 
-// Import Screens
-import BhwDashboardScreen from '../screens/BhwDashboardScreen';
+import FixedHeader from '../components/layout/FixedHeader'; // Import the header
+import BhwDashboardScreen from '../components/bhw/BhwDashboardScreen';
 import QRScannerScreen from '../screens/QRScannerScreen';
+import PatientManagementScreen from '../components/bhw/PatientManagementScreen'; // Import the screen
 
-// Placeholder screens for the other tabs
-const PlaceholderScreen = ({ route }) => (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>{route.name} Screen</Text>
-    </View>
-);
+const PlaceholderScreen = ({ route }) => ( <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>{route.name} Screen</Text></View> );
 
-const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
 
 // --- ICONS for the Tab Bar ---
 const HomeIcon = ({ color }) => ( <Svg width={28} height={28} viewBox="0 0 24 24"><Path fill={color} d="M10 20v-6h4v6h5v-8h3L12 3L2 12h3v8h5z"/></Svg> );
@@ -25,7 +21,20 @@ const AppointmentIcon = ({ color }) => ( <Svg width={28} height={28} viewBox="0 
 const InventoryIcon = ({ color }) => ( <Svg width={28} height={28} viewBox="0 0 24 24"><Path fill={color} d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 2h6v6h-6V4z"/></Svg> );
 const ReportsIcon = ({ color }) => ( <Svg width={28} height={28} viewBox="0 0 24 24"><Path fill={color} d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></Svg> );
 
-// This is the main tab navigator for logged-in users
+// --- This Stack contains all BHW screens that will share the same fixed header ---
+const BhwStack = () => (
+    <Stack.Navigator 
+        screenOptions={{ 
+            header: () => <FixedHeader />,
+            contentStyle: { backgroundColor: '#f0f4f8' },
+        }}
+    >
+        <Stack.Screen name="BhwDashboard" component={BhwDashboardScreen} />
+        {/* --- ADDED PatientManagementScreen to the stack with the fixed header --- */}
+        <Stack.Screen name="PatientManagement" component={PatientManagementScreen} />
+    </Stack.Navigator>
+);
+
 function MainTabs() {
     return (
         <Tab.Navigator
@@ -34,23 +43,7 @@ function MainTabs() {
                 tabBarActiveTintColor: '#2563eb',
                 tabBarInactiveTintColor: 'gray',
                 tabBarShowLabel: false,
-                // --- MODIFIED: Styles for a clean, floating navigation bar ---
-                tabBarStyle: {
-                    position: 'absolute',
-                    bottom: 45, // Adjust this value to move it up or down
-                    left: 20,
-                    right: 20,
-                    backgroundColor: 'white',
-                    borderRadius: 10,
-                    height: 45,
-                    borderTopWidth: 0, // Removes the top border line
-                    // Adds a subtle shadow for better appearance
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 5,
-                },
+                tabBarStyle: { position: 'absolute', bottom: 15, left: 20, right: 20, elevation: 5, backgroundColor: 'white', borderRadius: 15, height: 60, borderTopWidth: 0 },
                 tabBarIcon: ({ color }) => {
                     const size = 28;
                     if (route.name === 'Dashboard') return <HomeIcon color={color} size={size} />;
@@ -61,8 +54,9 @@ function MainTabs() {
                 },
             })}
         >
-            <Tab.Screen name="Dashboard" component={BhwDashboardScreen} />
-            <Tab.Screen name="Patient" component={PlaceholderScreen} />
+            <Tab.Screen name="Dashboard" component={BhwStack} />
+            {/* --- THIS LINE IS CORRECTED --- */}
+            <Tab.Screen name="Patient" component={BhwStack} initialParams={{ screen: 'PatientManagement' }} /> 
             <Tab.Screen name="Appointment" component={PlaceholderScreen} />
             <Tab.Screen name="Inventory" component={PlaceholderScreen} />
             <Tab.Screen name="Reports" component={PlaceholderScreen} />
@@ -70,13 +64,14 @@ function MainTabs() {
     );
 }
 
-// This is the root navigator for the authenticated part of the app
+const RootStack = createNativeStackNavigator();
+
 const AppNavigator = () => {
     return (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Main" component={MainTabs} />
-            <Stack.Screen name="QRScanner" component={QRScannerScreen} options={{ presentation: 'modal' }} />
-        </Stack.Navigator>
+        <RootStack.Navigator screenOptions={{ headerShown: false }}>
+            <RootStack.Screen name="Main" component={MainTabs} />
+            <RootStack.Screen name="QRScanner" component={QRScannerScreen} options={{ presentation: 'modal' }} />
+        </RootStack.Navigator>
     );
 };
 

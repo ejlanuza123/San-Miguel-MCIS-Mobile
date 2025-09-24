@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput } from 'react-native';
-import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabase';
+import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../services/supabase';
 import Svg, { Path } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -67,26 +67,6 @@ const BhwDashboardScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <View style={styles.profileInfo}>
-                    <Image source={{ uri: profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.first_name || 'U'}`}} style={styles.avatar} />
-                    <View>
-                        <Text style={styles.welcomeText}>Hi, Welcome Back</Text>
-                        <Text style={styles.userName}>{profile?.first_name} {profile?.last_name}</Text>
-                    </View>
-                </View>
-                <View style={styles.headerIcons}>
-                    <TouchableOpacity><NotificationIcon /></TouchableOpacity>
-                    <TouchableOpacity><SettingsIcon /></TouchableOpacity>
-                </View>
-            </View>
-
-            <View style={styles.searchContainer}>
-                <SearchIcon />
-                <TextInput placeholder="Search" style={styles.searchInput} />
-                <TouchableOpacity onPress={() => navigation.navigate('QRScanner')}><QRScanIcon /></TouchableOpacity>
-                <TouchableOpacity><FilterIcon /></TouchableOpacity>
-            </View>
 
             {/* --- Main Content Area --- */}
             <View style={styles.contentArea}>
@@ -144,15 +124,7 @@ const BhwDashboardScreen = () => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f0f4f8' },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 35, backgroundColor: '#dbeafe', borderBottomLeftRadius: 25, borderBottomRightRadius: 25 },
-    profileInfo: { flexDirection: 'row', alignItems: 'center' },
-    avatar: { width: 50, height: 50, borderRadius: 25, marginRight: 15 },
-    welcomeText: { fontSize: 14, color: '#6b7280' },
-    userName: { fontSize: 18, fontWeight: 'bold', color: '#1e3a8a' },
-    headerIcons: { flexDirection: 'row', gap: 15 },
-    searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', borderRadius: 12, paddingHorizontal: 15, marginHorizontal: 20, marginTop: -20, gap: 10, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
-    searchInput: { flex: 1, paddingVertical: 10, fontSize: 16 },
-    contentArea: { flex: 1, paddingTop: 10 },
+    contentArea: { flex: 1, paddingTop: 0, marginTop: -15 },
     section: { paddingHorizontal: 20, marginBottom: 15 },
     sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 10 },
     quickAccessContainer: { flexDirection: 'row', gap: 15 },
@@ -166,8 +138,8 @@ const styles = StyleSheet.create({
     appReason: { fontSize: 12, color: '#6b7280' },
     noAppointmentCard: { backgroundColor: 'white', borderRadius: 15, padding: 20, width: 250, height: 110, justifyContent: 'center', alignItems: 'center' },
     noAppointmentText: { color: '#6b7280', fontStyle: 'italic', fontSize: 12 },
-    calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10 },
-    arrow: { fontSize: 22, color: '#6b7280' },
+    calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, gap: 10 },
+    arrow: { fontSize: 22, color: '#6b7280', paddingHorizontal: 35, marginTop: -10 },
     
     // --- CORRECTED CALENDAR STYLES ---
     calendarGrid: {
