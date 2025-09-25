@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, TouchableOpacity, Image } from 'react-native';
 import { supabase } from '../../services/supabase';
 import Svg, { Path } from 'react-native-svg';
+import { useFocusEffect } from '@react-navigation/native'; // 1. Import useFocusEffect
+import { useHeader } from '../../context/HeaderContext';
 
 // --- ICONS ---
 const SearchIcon = () => <Svg width={20} height={20} viewBox="0 0 24 24"><Path fill="#9e9e9e" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></Svg>;
@@ -24,6 +26,21 @@ const StatusBadge = ({ status }) => {
     );
 };
 
+// This is the new colored tag legend
+const StatusLegend = () => (
+    <View style={styles.legendContainer}>
+        <View style={[styles.legendTag, { backgroundColor: '#dcfce7' }]}>
+            <Text style={[styles.legendTagText, { color: '#166534' }]}>Normal</Text>
+        </View>
+        <View style={[styles.legendTag, { backgroundColor: '#fef3c7' }]}>
+            <Text style={[styles.legendTagText, { color: '#b45309' }]}>Mid Risk</Text>
+        </View>
+        <View style={[styles.legendTag, { backgroundColor: '#fee2e2' }]}>
+            <Text style={[styles.legendTagText, { color: '#991b1b' }]}>High Risk</Text>
+        </View>
+    </View>
+);
+
 const PatientRow = ({ item }) => (
     <View style={styles.patientRow}>
         <Text style={[styles.rowText, styles.idColumn]}>{item.patient_id}</Text>
@@ -39,11 +56,14 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
     return (
         <View style={styles.paginationContainer}>
             <TouchableOpacity onPress={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
-                <Text style={[styles.paginationText, currentPage === 1 && styles.disabledText]}>&lt; Previous</Text>
+                <Text style={[styles.paginationText, currentPage === 1 && styles.disabledText]}>
+                {"< Prev"}
+                </Text>
             </TouchableOpacity>
-            <Text style={styles.paginationText}>{currentPage} / {totalPages}</Text>
+            <Text style={styles.paginationText}>{`${currentPage} / ${totalPages}`}</Text>
             <TouchableOpacity onPress={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>
-                <Text style={[styles.paginationText, currentPage === totalPages && styles.disabledText]}>Next &gt;</Text>
+                <Text style={[styles.paginationText, currentPage === totalPages && styles.disabledText]}>{"Next >"}
+                </Text>
             </TouchableOpacity>
         </View>
     );
@@ -57,6 +77,32 @@ const PatientManagementScreen = () => {
     const [activeFilter, setActiveFilter] = useState('All');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
+    const { searchTerm, setPlaceholder, setFilterOptions, setIsFilterOpen } = useHeader();
+
+ 
+    useFocusEffect(
+        useCallback(() => {
+            setPlaceholder('Search patients by name...');
+            
+            // Define the options for the dropdown
+            const options = [
+                { label: 'All', onPress: () => setActiveFilter('All') },
+                { label: 'Normal', onPress: () => setActiveFilter('NORMAL') },
+                { label: 'Mid Risk', onPress: () => setActiveFilter('MID RISK') },
+                { label: 'High Risk', onPress: () => setActiveFilter('HIGH RISK') },
+            ].map(opt => ({
+                ...opt,
+                onPress: () => {
+                    opt.onPress(); // Update the local state
+                    setIsFilterOpen(false); // Close the dropdown
+                }
+            }));
+            
+            // Provide the options to the header
+            setFilterOptions(options);
+
+        }, [])
+    );
 
     const fetchPatients = useCallback(async () => {
         setLoading(true);
@@ -71,9 +117,23 @@ const PatientManagementScreen = () => {
     }, [fetchPatients]);
 
     const filteredPatients = useMemo(() => {
-        if (activeFilter === 'All') return allPatients;
-        return allPatients.filter(p => p.risk_level === activeFilter);
-    }, [allPatients, activeFilter]);
+        let patients = allPatients;
+
+        // 1. Filter by active risk level
+        if (activeFilter !== 'All') {
+            patients = patients.filter(p => p.risk_level === activeFilter);
+        }
+
+        // 2. Filter by search term
+        if (searchTerm) {
+            patients = patients.filter(p => 
+                (p.first_name && p.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (p.last_name && p.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
+            );
+        }
+        
+        return patients;
+    }, [allPatients, searchTerm, activeFilter]);
 
     const paginatedPatients = useMemo(() => {
         const from = (currentPage - 1) * itemsPerPage;
@@ -83,14 +143,7 @@ const PatientManagementScreen = () => {
 
     const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
 
-    const FilterButton = ({ label, color }) => (
-        <TouchableOpacity 
-            style={[styles.filterButton, { backgroundColor: activeFilter === label ? color : '#e5e7eb' }]}
-            onPress={() => setActiveFilter(label)}
-        >
-            <Text style={[styles.filterButtonText, { color: activeFilter === label ? 'white' : '#4b5563' }]}>{label}</Text>
-        </TouchableOpacity>
-    );
+    
 
     return (
         // --- MODIFIED: Removed SafeAreaView and Header. Content is now wrapped in a single View. ---
@@ -104,7 +157,6 @@ const PatientManagementScreen = () => {
                     <Text style={[styles.headerText, styles.ageColumn]}>Age</Text>
                     <Text style={[styles.headerText, styles.statusColumn]}>Status</Text>
                 </View>
-
                 {loading ? (
                     <Text style={styles.loadingText}>Loading Patients...</Text>
                 ) : (
@@ -115,19 +167,14 @@ const PatientManagementScreen = () => {
                     />
                 )}
             </View>
-            
             <View style={styles.controlsContainer}>
                 <View style={styles.filterContainer}>
-                    <FilterButton label="Normal" color="#22c55e" />
-                    <FilterButton label="Mid Risk" color="#f59e0b" />
-                    <FilterButton label="High Risk" color="#ef4444" />
+                <StatusLegend />
                 </View>
-
                 <TouchableOpacity style={styles.addButton}>
                     <AddUserIcon />
                     <Text style={styles.addButtonText}>Add New Patient</Text>
                 </TouchableOpacity>
-
                 <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
             </View>
         </View>
@@ -161,9 +208,24 @@ const styles = StyleSheet.create({
     loadingText: { textAlign: 'center', marginTop: 20, color: '#6b7280' },
     
     controlsContainer: { padding: 20 },
-    filterContainer: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 15 },
-    filterButton: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 15 },
-    filterButtonText: { fontSize: 12, fontWeight: '600' },
+    legendContainer: {
+    marginBottom: 15,
+    },
+        legendContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    legendTag: {
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 15,
+    },
+    legendTagText: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
     
     addButton: { flexDirection: 'row', backgroundColor: '#3b82f6', padding: 15, borderRadius: 10, alignItems: 'center', justifyContent: 'center', gap: 10 },
     addButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },

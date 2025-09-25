@@ -1,8 +1,12 @@
+import 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NotificationProvider } from './src/context/NotificationContext'; // <-- 1. IMPORT THE PROVIDER
+
 
 // Import all screens and navigators
 import SplashScreen from './src/screens/SplashScreen';
@@ -38,9 +42,14 @@ function RootNavigator() {
         <NavigationContainer>
             <Stack.Navigator 
                 screenOptions={{ headerShown: false }}
-                // --- MODIFIED: Set the starting screen based on launch status ---
-                initialRouteName={isFirstLaunch ? 'Splash' : 'Auth'}
-            >
+                initialRouteName={
+                    user 
+                    ? 'App'   // if logged in, start at AppNavigator
+                    : isFirstLaunch 
+                        ? 'Splash' 
+                        : 'Auth'
+                }
+                >
                 {user ? (
                     // If user is logged in, they only see the main app navigator
                     <Stack.Screen name="App" component={AppNavigator} />
@@ -60,8 +69,12 @@ function RootNavigator() {
 
 export default function App() {
     return (
-        <AuthProvider>
-            <RootNavigator />
-        </AuthProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+            <AuthProvider>
+                <NotificationProvider>
+                    <RootNavigator />
+                </NotificationProvider>
+            </AuthProvider>
+        </GestureHandlerRootView>
     );
 }

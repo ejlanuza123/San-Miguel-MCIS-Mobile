@@ -4,8 +4,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Svg, { Path } from 'react-native-svg';
 
+import { HeaderProvider } from '../context/HeaderContext';
+
 import FixedHeader from '../components/layout/FixedHeader'; // Import the header
 import BhwDashboardScreen from '../components/bhw/BhwDashboardScreen';
+import BhwAppointmentScreen from '../components/bhw/BhwAppointmentScreen';
 import QRScannerScreen from '../screens/QRScannerScreen';
 import PatientManagementScreen from '../components/bhw/PatientManagementScreen'; // Import the screen
 
@@ -32,35 +35,42 @@ const BhwStack = () => (
         <Stack.Screen name="BhwDashboard" component={BhwDashboardScreen} />
         {/* --- ADDED PatientManagementScreen to the stack with the fixed header --- */}
         <Stack.Screen name="PatientManagement" component={PatientManagementScreen} />
+        <Stack.Screen name="BhwAppointment" component={BhwAppointmentScreen} />
     </Stack.Navigator>
 );
 
 function MainTabs() {
     return (
-        <Tab.Navigator
-            screenOptions={({ route }) => ({
-                headerShown: false,
-                tabBarActiveTintColor: '#2563eb',
-                tabBarInactiveTintColor: 'gray',
-                tabBarShowLabel: false,
-                tabBarStyle: { position: 'absolute', bottom: 15, left: 20, right: 20, elevation: 5, backgroundColor: 'white', borderRadius: 15, height: 60, borderTopWidth: 0 },
-                tabBarIcon: ({ color }) => {
-                    const size = 28;
-                    if (route.name === 'Dashboard') return <HomeIcon color={color} size={size} />;
-                    if (route.name === 'Patient') return <PatientIcon color={color} size={size} />;
-                    if (route.name === 'Appointment') return <AppointmentIcon color={color} size={size} />;
-                    if (route.name === 'Inventory') return <InventoryIcon color={color} size={size} />;
-                    if (route.name === 'Reports') return <ReportsIcon color={color} size={size} />;
-                },
-            })}
-        >
-            <Tab.Screen name="Dashboard" component={BhwStack} />
-            {/* --- THIS LINE IS CORRECTED --- */}
-            <Tab.Screen name="Patient" component={BhwStack} initialParams={{ screen: 'PatientManagement' }} /> 
-            <Tab.Screen name="Appointment" component={PlaceholderScreen} />
-            <Tab.Screen name="Inventory" component={PlaceholderScreen} />
-            <Tab.Screen name="Reports" component={PlaceholderScreen} />
-        </Tab.Navigator>
+        <HeaderProvider>
+            <Tab.Navigator
+                screenOptions={({ route }) => ({
+                    headerShown: false,
+                    tabBarActiveTintColor: '#2563eb',
+                    tabBarInactiveTintColor: 'gray',
+                    tabBarShowLabel: false,
+                    tabBarStyle: { position: 'absolute', bottom: 15, left: 20, right: 20, elevation: 5, backgroundColor: 'white', borderRadius: 15, height: 60, borderTopWidth: 0 },
+                    tabBarIcon: ({ color }) => {
+                        const size = 28;
+                        if (route.name === 'Dashboard') return <HomeIcon color={color} size={size} />;
+                        if (route.name === 'Patient') return <PatientIcon color={color} size={size} />;
+                        if (route.name === 'Appointment') return <AppointmentIcon color={color} size={size} />;
+                        if (route.name === 'Inventory') return <InventoryIcon color={color} size={size} />;
+                        if (route.name === 'Reports') return <ReportsIcon color={color} size={size} />;
+                    },
+                })}
+            >
+                <Tab.Screen name="Dashboard" component={BhwStack} />
+                {/* --- THIS LINE IS CORRECTED --- */}
+                <Tab.Screen name="Patient" component={BhwStack} initialParams={{ screen: 'PatientManagement' }} /> 
+                <Tab.Screen 
+                    name="Appointment" 
+                    component={BhwStack} 
+                    initialParams={{ screen: 'BhwAppointment' }} 
+                />
+                <Tab.Screen name="Inventory" component={PlaceholderScreen} />
+                <Tab.Screen name="Reports" component={PlaceholderScreen} />
+            </Tab.Navigator>
+        </HeaderProvider>    
     );
 }
 
