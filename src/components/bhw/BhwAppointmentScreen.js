@@ -193,9 +193,9 @@ export default function BhwAppointmentScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f0f4f8', paddingBottom: 80 },
     mainCard: { flex: 1, backgroundColor: 'white', marginHorizontal: 20, marginTop: 20, borderRadius: 20, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, overflow: 'hidden' },
-    cardTitle: { fontSize: 22, fontWeight: 'bold', padding: 20, textAlign: 'center' },
+    cardTitle: { fontSize: 19, fontWeight: 'bold', padding: 20, textAlign: 'center' },
     listHeader: { flexDirection: 'row', paddingHorizontal: 15, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-    headerText: { fontWeight: 'bold', color: '#6b7280', fontSize: 12 },
+    headerText: { fontWeight: 'bold', color: '#6b7280', fontSize: 11 },
     appointmentRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
     rowText: { fontSize: 13 },
     idColumn: { flex: 1.5, fontWeight: 'bold' },

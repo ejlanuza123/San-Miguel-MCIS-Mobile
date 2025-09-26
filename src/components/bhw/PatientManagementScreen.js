@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, TouchableOpacity, Image, Modal, ActivityIndicator } from 'react-native';
 import { supabase } from '../../services/supabase';
 import Svg, { Path } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native'; // 1. Import useFocusEffect
 import { useHeader } from '../../context/HeaderContext';
-
+import AddPatientModal from './AddPatientModal';
+import ViewPatientModal from './ViewPatientModal';
+import { useNotification } from '../../context/NotificationContext';
 // --- ICONS ---
 const SearchIcon = () => <Svg width={20} height={20} viewBox="0 0 24 24"><Path fill="#9e9e9e" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></Svg>;
 const FilterIcon = () => <Svg width={24} height={24} viewBox="0 0 24 24"><Path fill="#333" d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></Svg>;
@@ -41,14 +43,16 @@ const StatusLegend = () => (
     </View>
 );
 
-const PatientRow = ({ item }) => (
-    <View style={styles.patientRow}>
+const PatientRow = ({ item, onPress }) => (
+    <TouchableOpacity style={styles.patientRow} onPress={onPress}>
+        {/* ... content of the row ... */}
         <Text style={[styles.rowText, styles.idColumn]}>{item.patient_id}</Text>
-        <Text style={[styles.rowText, styles.nameColumn]}>{item.last_name}</Text>
-        <Text style={[styles.rowText, styles.nameColumn]}>{item.first_name}</Text>
+        <Text style={[styles.rowText, styles.nameColumn]}>{`${item.last_name}, ${item.first_name}`}</Text>
         <Text style={[styles.rowText, styles.ageColumn]}>{item.age}</Text>
-        <View style={[styles.rowText, styles.statusColumn]}><StatusBadge status={item.risk_level} /></View>
-    </View>
+        <View style={[styles.rowText, styles.statusColumn]}>
+            <StatusBadge status={item.risk_level} />
+        </View>
+    </TouchableOpacity>
 );
 
 const Pagination = ({ currentPage, totalPages, onPageChange }) => {
@@ -71,113 +75,145 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
 
 
 // --- MAIN SCREEN COMPONENT ---
-const PatientManagementScreen = () => {
+export default function PatientManagementScreen({ route, navigation }) {
     const [allPatients, setAllPatients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeFilter, setActiveFilter] = useState('All');
     const [currentPage, setCurrentPage] = useState(1);
+    const [totalRecords, setTotalRecords] = useState(0);
     const itemsPerPage = 5;
+    
     const { searchTerm, setPlaceholder, setFilterOptions, setIsFilterOpen } = useHeader();
+    const { addNotification } = useNotification();
+    
+    // State for modals
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [selectedPatient, setSelectedPatient] = useState(null);
+    const [modalMode, setModalMode] = useState('add'); // Default to 'add'
 
- 
+    const handleViewPatient = (patient) => {
+        setSelectedPatient(patient);
+        setIsViewModalOpen(true);
+    };
+
     useFocusEffect(
         useCallback(() => {
             setPlaceholder('Search patients by name...');
-            
-            // Define the options for the dropdown
             const options = [
-                { label: 'All', onPress: () => setActiveFilter('All') },
-                { label: 'Normal', onPress: () => setActiveFilter('NORMAL') },
-                { label: 'Mid Risk', onPress: () => setActiveFilter('MID RISK') },
-                { label: 'High Risk', onPress: () => setActiveFilter('HIGH RISK') },
-            ].map(opt => ({
-                ...opt,
-                onPress: () => {
-                    opt.onPress(); // Update the local state
-                    setIsFilterOpen(false); // Close the dropdown
-                }
-            }));
-            
-            // Provide the options to the header
+                { label: 'All', onPress: () => { setActiveFilter('All'); setCurrentPage(1); } },
+                { label: 'Normal', onPress: () => { setActiveFilter('NORMAL'); setCurrentPage(1); } },
+                { label: 'Mid Risk', onPress: () => { setActiveFilter('MID RISK'); setCurrentPage(1); } },
+                { label: 'High Risk', onPress: () => { setActiveFilter('HIGH RISK'); setCurrentPage(1); } },
+            ].map(opt => ({...opt, onPress: () => { opt.onPress(); setIsFilterOpen(false); }}));
             setFilterOptions(options);
-
-        }, [])
+        }, [setPlaceholder, setFilterOptions, setIsFilterOpen])
     );
 
     const fetchPatients = useCallback(async () => {
         setLoading(true);
-        let { data, error } = await supabase.from('patients').select('*').order('last_name', { ascending: true });
-        if (error) console.error("Error fetching patients:", error);
-        else setAllPatients(data || []);
+        const from = (currentPage - 1) * itemsPerPage;
+        const to = from + itemsPerPage - 1;
+        let query = supabase.from('patients').select('*', { count: 'exact' });
+        if (activeFilter !== 'All') { query = query.eq('risk_level', activeFilter); }
+        if (searchTerm) { query = query.ilike('last_name', `%${searchTerm}%`); }
+        const { data, error, count } = await query.order('last_name', { ascending: true }).range(from, to);
+
+        if (error) { addNotification("Error fetching patients: " + error.message, 'error'); } 
+        else {
+            setAllPatients(data || []);
+            setTotalRecords(count || 0);
+        }
         setLoading(false);
-    }, []);
+    }, [currentPage, activeFilter, searchTerm, addNotification]);
 
     useEffect(() => {
         fetchPatients();
     }, [fetchPatients]);
-
-    const filteredPatients = useMemo(() => {
-        let patients = allPatients;
-
-        // 1. Filter by active risk level
-        if (activeFilter !== 'All') {
-            patients = patients.filter(p => p.risk_level === activeFilter);
-        }
-
-        // 2. Filter by search term
-        if (searchTerm) {
-            patients = patients.filter(p => 
-                (p.first_name && p.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                (p.last_name && p.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
-            );
-        }
-        
-        return patients;
-    }, [allPatients, searchTerm, activeFilter]);
-
-    const paginatedPatients = useMemo(() => {
-        const from = (currentPage - 1) * itemsPerPage;
-        const to = from + itemsPerPage;
-        return filteredPatients.slice(from, to);
-    }, [filteredPatients, currentPage]);
-
-    const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
-
     
+    // --- THIS IS THE CRITICAL LOGIC FOR THE QR SCAN ---
+    useEffect(() => {
+        const scannedId = route.params?.scannedPatientId;
+        if (scannedId) {
+            const findAndEditPatient = async () => {
+                setLoading(true);
+                const { data: patient, error } = await supabase.from('patients').select('*').eq('patient_id', scannedId).single();
+                setLoading(false);
+
+                if (error) {
+                    addNotification(`Patient ID "${scannedId}" not found.`, 'error');
+                } else if (patient) {
+                    // 1. Set the patient data to be edited
+                    setSelectedPatient(patient);
+                    // 2. CRITICAL: Set the modal's mode to 'edit'
+                    setModalMode('edit');
+                    // 3. Open the modal
+                    setIsAddModalOpen(true);
+                }
+            };
+            findAndEditPatient();
+            navigation.setParams({ scannedPatientId: null }); 
+        }
+    }, [route.params?.scannedPatientId, navigation, addNotification]);
+
+    const totalPages = Math.ceil(totalRecords / itemsPerPage);
 
     return (
-        // --- MODIFIED: Removed SafeAreaView and Header. Content is now wrapped in a single View. ---
-        <View style={styles.container}>
-            <View style={styles.mainCard}>
-                <Text style={styles.cardTitle}>Patient List</Text>
-                <View style={styles.listHeader}>
-                    <Text style={[styles.headerText, styles.idColumn]}>ID</Text>
-                    <Text style={[styles.headerText, styles.nameColumn]}>Last Name</Text>
-                    <Text style={[styles.headerText, styles.nameColumn]}>First Name</Text>
-                    <Text style={[styles.headerText, styles.ageColumn]}>Age</Text>
-                    <Text style={[styles.headerText, styles.statusColumn]}>Status</Text>
+        <>
+            <Modal visible={isAddModalOpen} animationType="slide" onRequestClose={() => setIsAddModalOpen(false)}>
+                <AddPatientModal 
+                    mode={modalMode}
+                    initialData={modalMode === 'edit' ? selectedPatient : null}
+                    onClose={() => setIsAddModalOpen(false)}
+                    onSave={fetchPatients}
+                />
+            </Modal>
+            <Modal visible={isViewModalOpen} animationType="fade" transparent={true} onRequestClose={() => setIsViewModalOpen(false)}>
+                <ViewPatientModal patient={selectedPatient} onClose={() => setIsViewModalOpen(false)} />
+            </Modal>
+            
+            <View style={styles.container}>
+                <View style={styles.mainCard}>
+                    <Text style={styles.cardTitle}>Patient List</Text>
+                    <View style={styles.listHeader}>
+                        <Text style={[styles.headerText, styles.idColumn]}>ID</Text>
+                        <Text style={[styles.headerText, styles.nameColumn]}>Name</Text>
+                        <Text style={[styles.headerText, styles.ageColumn]}>Age</Text>
+                        <Text style={[styles.headerText, styles.statusColumn]}>Status</Text>
+                    </View>
+                    {loading ? (
+                        <ActivityIndicator style={{ marginTop: 20 }} size="large" color="#3b82f6" />
+                    ) : (
+                        <FlatList
+                            data={allPatients}
+                            keyExtractor={(item) => item.id.toString()}
+                            renderItem={({ item }) => (
+                                <PatientRow 
+                                    item={item} 
+                                    onPress={() => handleViewPatient(item)} 
+                                />
+                            )}
+                            ListEmptyComponent={<Text style={styles.emptyText}>No patients found.</Text>}
+                        />
+                    )}
                 </View>
-                {loading ? (
-                    <Text style={styles.loadingText}>Loading Patients...</Text>
-                ) : (
-                    <FlatList
-                        data={paginatedPatients}
-                        keyExtractor={(item) => item.id.toString()}
-                        renderItem={({ item }) => <PatientRow item={item} />}
-                    />
-                )}
-            </View>
-            <View style={styles.controlsContainer}>
-                <View style={styles.filterContainer}>
-                <StatusLegend />
+                <View style={styles.controlsContainer}>
+                    <StatusLegend />
+                    <TouchableOpacity 
+                        style={styles.addButton} 
+                        onPress={() => {
+                            setSelectedPatient(null);
+                            setModalMode('add'); // Set mode to 'add' for new patient
+                            setIsAddModalOpen(true);
+                        }}
+                    >
+                        <AddUserIcon />
+                        <Text style={styles.addButtonText}>Add New Patient</Text>
+                    </TouchableOpacity>
+                    <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
                 </View>
-                <TouchableOpacity style={styles.addButton}>
-                    <AddUserIcon />
-                    <Text style={styles.addButtonText}>Add New Patient</Text>
-                </TouchableOpacity>
-                <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
             </View>
-        </View>
+        </>
     );
 };
 
@@ -235,4 +271,3 @@ const styles = StyleSheet.create({
     disabledText: { color: '#9ca3af' },
 });
 
-export default PatientManagementScreen;

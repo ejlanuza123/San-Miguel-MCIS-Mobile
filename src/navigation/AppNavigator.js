@@ -9,6 +9,7 @@ import { HeaderProvider } from '../context/HeaderContext';
 import FixedHeader from '../components/layout/FixedHeader'; // Import the header
 import BhwDashboardScreen from '../components/bhw/BhwDashboardScreen';
 import BhwAppointmentScreen from '../components/bhw/BhwAppointmentScreen';
+import BhwInventoryScreen from '../components/bhw/BhwInventoryScreen';
 import QRScannerScreen from '../screens/QRScannerScreen';
 import PatientManagementScreen from '../components/bhw/PatientManagementScreen'; // Import the screen
 
@@ -16,6 +17,7 @@ const PlaceholderScreen = ({ route }) => ( <View style={{ flex: 1, justifyConten
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const RootStack = createNativeStackNavigator();
 
 // --- ICONS for the Tab Bar ---
 const HomeIcon = ({ color }) => ( <Svg width={28} height={28} viewBox="0 0 24 24"><Path fill={color} d="M10 20v-6h4v6h5v-8h3L12 3L2 12h3v8h5z"/></Svg> );
@@ -36,6 +38,7 @@ const BhwStack = () => (
         {/* --- ADDED PatientManagementScreen to the stack with the fixed header --- */}
         <Stack.Screen name="PatientManagement" component={PatientManagementScreen} />
         <Stack.Screen name="BhwAppointment" component={BhwAppointmentScreen} />
+        <Stack.Screen name="BhwInventory" component={BhwInventoryScreen} />
     </Stack.Navigator>
 );
 
@@ -61,26 +64,44 @@ function MainTabs() {
             >
                 <Tab.Screen name="Dashboard" component={BhwStack} />
                 {/* --- THIS LINE IS CORRECTED --- */}
-                <Tab.Screen name="Patient" component={BhwStack} initialParams={{ screen: 'PatientManagement' }} /> 
+                <Tab.Screen 
+                    name="Patient" 
+                    component={BhwStack} 
+                    initialParams={{ screen: 'PatientManagement' }}
+                    listeners={({ navigation, route }) => ({
+                        tabPress: (e) => {
+                            e.preventDefault();
+                            navigation.navigate('Patient', { screen: 'PatientManagement', params: route.params });
+                        },
+                    })}
+                />                
                 <Tab.Screen 
                     name="Appointment" 
                     component={BhwStack} 
                     initialParams={{ screen: 'BhwAppointment' }} 
                 />
-                <Tab.Screen name="Inventory" component={PlaceholderScreen} />
+                <Tab.Screen 
+                    name="Inventory" 
+                    component={BhwStack} 
+                    initialParams={{ screen: 'BhwInventory' }} 
+                />
                 <Tab.Screen name="Reports" component={PlaceholderScreen} />
             </Tab.Navigator>
         </HeaderProvider>    
     );
 }
 
-const RootStack = createNativeStackNavigator();
+
 
 const AppNavigator = () => {
     return (
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
             <RootStack.Screen name="Main" component={MainTabs} />
-            <RootStack.Screen name="QRScanner" component={QRScannerScreen} options={{ presentation: 'modal' }} />
+            <RootStack.Screen 
+                name="QRScanner" 
+                component={QRScannerScreen} 
+                options={{ presentation: 'fullScreenModal' }} 
+            />
         </RootStack.Navigator>
     );
 };
