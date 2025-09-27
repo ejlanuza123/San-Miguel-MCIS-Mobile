@@ -1,8 +1,7 @@
 // src/context/NotificationContext.js
 import React, { createContext, useState, useContext, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
-import Animated, { Layout, FadeInUp, FadeOutUp } from 'react-native-reanimated';
-import Notification from '../components/layout/Notification'; // We will create this next
+import Notification from '../components/layout/Notification'; // Use a default import
 
 const NotificationContext = createContext();
 
@@ -25,9 +24,7 @@ export const NotificationProvider = ({ children }) => {
             {children}
             <View style={styles.container}>
                 {notifications.map(n => (
-                    <Animated.View key={n.id} layout={Layout} entering={FadeInUp} exiting={FadeOutUp}>
-                        <Notification notification={n} onClear={removeNotification} />
-                    </Animated.View>
+                    <Notification key={n.id} notification={n} onClear={removeNotification} />
                 ))}
             </View>
         </NotificationContext.Provider>
@@ -37,7 +34,7 @@ export const NotificationProvider = ({ children }) => {
 const styles = StyleSheet.create({
     container: {
         position: 'absolute',
-        top: 60, // Position notifications below the header
+        top: 85, // Position notifications below the header
         right: 10,
         left: 10,
         zIndex: 1000,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback,useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput, Modal } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
@@ -7,6 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHeader } from '../../context/HeaderContext'; // 1. Import useHeader
 import { useRoute } from '@react-navigation/native';   // 2. Import useRoute
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'; // Import animation hooks
+import NotificationModal from './NotificationModal';
+import { supabase } from '../../services/supabase';
 
 // --- ICONS ---
 const NotificationIcon = () => <Svg width={24} height={24} viewBox="0 0 24 24"><Path fill="#333" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></Svg>;
@@ -31,6 +33,7 @@ const SettingsIcon = () => (
 const SearchIcon = () => <Svg width={20} height={20} viewBox="0 0 24 24"><Path fill="#9e9e9e" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></Svg>;
 const QRScanIcon = () => <Svg width={24} height={24} viewBox="0 0 24 24"><Path fill="#333" d="M3 11h8V3H3v8zm2-6h4v4H5V5zM3 21h8v-8H3v8zm2-6h4v4H5v-4zM13 3v8h8V3h-8zm6 6h-4V5h4v4zM13 21h8v-8h-8v8zm2-6h4v4h-4v-4z"/></Svg>;
 const FilterIcon = () => <Svg width={24} height={24} viewBox="0 0 24 24"><Path fill="#333" d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></Svg>;
+const BellIcon = () => <Svg width={24} height={24} viewBox="0 0 24 24"><Path fill="#333" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></Svg>;
 const FilterDropdown = ({ options, isVisible, onClose }) => {
     return (
         <Modal
@@ -56,12 +59,86 @@ const FilterDropdown = ({ options, isVisible, onClose }) => {
     );
 };
 const FixedHeader = () => {
-    const { profile } = useAuth();
+    const { profile, user } = useAuth();
     const navigation = useNavigation();
     
     const { searchTerm, setSearchTerm, placeholder, isFilterOpen, setIsFilterOpen, filterOptions } = useHeader();
     const route = useRoute();
     const showQrIcon = route.name === 'BhwDashboard' || route.name === 'PatientManagement';
+    const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
+    const [notifications, setNotifications] = useState([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    // --- NEW LOGIC FOR FETCHING AND SUBSCRIBING TO NOTIFICATIONS ---
+    const fetchNotifications = useCallback(async () => {
+        if (!user) return;
+        const { data, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (data) {
+            setNotifications(data);
+            setUnreadCount(data.filter(n => !n.is_read).length);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        fetchNotifications(); // Fetch on initial load
+
+        // Set up real-time subscription
+        const channel = supabase
+            .channel('public:notifications')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user?.id}` },
+                (payload) => {
+                    fetchNotifications(); // Re-fetch when a change occurs
+                }
+            )
+            .subscribe();
+
+        // Cleanup subscription on component unmount
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user, fetchNotifications]);
+
+    // --- NEW HANDLER FUNCTIONS FOR MODAL ACTIONS ---
+    const handleMarkAllRead = async () => {
+        if (!user) return;
+        await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
+        fetchNotifications(); // Refresh list
+    };
+
+    const handleDeleteAll = async () => {
+        if (!user) return;
+        await supabase.from('notifications').delete().eq('user_id', user.id);
+        fetchNotifications(); // Refresh list
+    };
+
+    const handleDeleteOne = async (id) => {
+        await supabase.from('notifications').delete().eq('id', id);
+        fetchNotifications(); // Refresh list
+    };
+    
+    const handleNotificationPress = async (notification) => {
+        // Mark as read when clicked
+        await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id);
+        setIsNotifModalOpen(false); // Close modal
+        // Navigate based on type
+        switch (notification.type) {
+            case 'inventory_alert':
+                navigation.navigate('Main', { screen: 'Inventory' });
+                break;
+            case 'appointment_reminder':
+            case 'patient_due_soon':
+                navigation.navigate('Main', { screen: 'Appointment' });
+                break;
+            // Add more cases for other notification types
+            default:
+                break;
+        }
+    };
 
     return (
         <>
@@ -75,8 +152,17 @@ const FixedHeader = () => {
                         </View>
                     </View>
                     <View style={styles.headerIcons}>
-                        <TouchableOpacity><NotificationIcon /></TouchableOpacity>
-                        <TouchableOpacity><SettingsIcon /></TouchableOpacity>
+                        <TouchableOpacity onPress={() => setIsNotifModalOpen(true)}>
+                            <BellIcon />
+                            {unreadCount > 0 && (
+                                <View style={styles.badgeContainer}>
+                                    <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+                        <SettingsIcon />
+                        </TouchableOpacity>
                     </View>
                 </View>
                 <View style={styles.searchContainer}>
@@ -100,6 +186,15 @@ const FixedHeader = () => {
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
+            <NotificationModal 
+                isVisible={isNotifModalOpen}
+                onClose={() => setIsNotifModalOpen(false)}
+                notifications={notifications}
+                onMarkAllRead={handleMarkAllRead}
+                onDeleteAll={handleDeleteAll}
+                onDeleteOne={handleDeleteOne}
+                onNotificationPress={handleNotificationPress}
+            />
             <FilterDropdown 
                 isVisible={isFilterOpen}
                 onClose={() => setIsFilterOpen(false)}
@@ -165,6 +260,24 @@ const styles = StyleSheet.create({
     filterOptionText: {
         fontSize: 16,
         color: '#333',
+    },
+    badgeContainer: {
+        position: 'absolute',
+        top: -5,
+        right: -5,
+        backgroundColor: '#dc2626', // Red
+        borderRadius: 10,
+        minWidth: 20,
+        height: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#dbeafe',
+    },
+    badgeText: {
+        color: 'white',
+        fontSize: 10,
+        fontWeight: 'bold',
     },
 });
 export default FixedHeader;

@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, Modal } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabase';
 import Svg, { Path } from 'react-native-svg';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AddAppointmentModal from './AddAppointmentModal';
+import AddPatientModal from './AddPatientModal';
+import ViewAppointmentModal from './ViewAppointmentModal';
+
 
 // --- ICONS ---
 const NotificationIcon = () => <Svg width={24} height={24} viewBox="0 0 24 24"><Path fill="#333" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></Svg>;
@@ -20,6 +24,15 @@ const BhwDashboardScreen = () => {
     const [appointments, setAppointments] = useState([]);
     const navigation = useNavigation();
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [isAddAppointmentModalOpen, setIsAddAppointmentModalOpen] = useState(false);
+    const [isAddPatientModalOpen, setIsAddPatientModalOpen] = useState(false);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [selectedAppointment, setSelectedAppointment] = useState(null);
+
+    const handleViewAppointment = (appointment) => {
+        setSelectedAppointment(appointment);
+        setIsViewModalOpen(true);
+    };
 
     const fetchDashboardData = useCallback(async () => {
         if (!profile) return;
@@ -35,9 +48,15 @@ const BhwDashboardScreen = () => {
         if (data) setAppointments(data);
     }, [profile]);
 
-    useEffect(() => {
-        fetchDashboardData();
-    }, [fetchDashboardData]);
+    useFocusEffect(
+        useCallback(() => {
+            // This code will now run every time the screen comes into view
+            fetchDashboardData();
+
+            // Optional: Return a cleanup function if needed
+            return () => {}; 
+        }, [fetchDashboardData])
+    );
     
     const changeMonth = (amount) => setCurrentDate(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + amount); return d; });
     const generateCalendarGrid = () => {
@@ -66,6 +85,39 @@ const BhwDashboardScreen = () => {
     };
 
     return (
+        <>
+            <Modal
+                visible={isAddAppointmentModalOpen}
+                animationType="slide"
+                onRequestClose={() => setIsAddAppointmentModalOpen(false)}
+            >
+                <AddAppointmentModal 
+                    onClose={() => setIsAddAppointmentModalOpen(false)}
+                    onSave={fetchDashboardData} 
+                />
+            </Modal>
+            
+            <Modal
+                visible={isAddPatientModalOpen}
+                animationType="slide"
+                onRequestClose={() => setIsAddPatientModalOpen(false)}
+            >
+                <AddPatientModal 
+                    onClose={() => setIsAddPatientModalOpen(false)}
+                    onSave={fetchDashboardData} // Refreshes data after adding
+                />
+            </Modal>
+            <Modal
+                visible={isViewModalOpen}
+                animationType="fade"
+                transparent={true}
+                onRequestClose={() => setIsViewModalOpen(false)}
+            >
+                <ViewAppointmentModal 
+                    appointment={selectedAppointment} 
+                    onClose={() => setIsViewModalOpen(false)} 
+                />
+            </Modal>
         <SafeAreaView style={styles.container}>
 
             {/* --- Main Content Area --- */}
@@ -73,8 +125,12 @@ const BhwDashboardScreen = () => {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Quick Access</Text>
                     <View style={styles.quickAccessContainer}>
-                        <TouchableOpacity style={[styles.quickButton, styles.orangeButton]}><Text style={styles.quickButtonText}>Add Appointment</Text></TouchableOpacity>
-                        <TouchableOpacity style={[styles.quickButton, styles.blueButton]}><Text style={styles.quickButtonText}>Add Patient</Text></TouchableOpacity>
+                        <TouchableOpacity style={[styles.quickButton, styles.orangeButton]} onPress={() => setIsAddAppointmentModalOpen(true)}>
+                            <Text style={styles.quickButtonText}>Add Appointment</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.quickButton, styles.blueButton]} onPress={() => setIsAddPatientModalOpen(true)}>
+                            <Text style={styles.quickButtonText}>Add Patient</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -82,11 +138,13 @@ const BhwDashboardScreen = () => {
                     <Text style={styles.sectionTitle}>Upcoming Appointments</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                         {appointments.length > 0 ? appointments.map(app => (
-                            <View key={app.id} style={styles.appointmentCard}>
+                            <TouchableOpacity key={app.id} style={styles.appointmentCard} onPress={() => handleViewAppointment(app)}>
                                 <Text style={styles.appDay}>{new Date(app.date).toLocaleDateString('en-US', { weekday: 'long' })}</Text>
                                 <Text style={styles.appTime}>{app.time}</Text>
+                                {/* This now shows the full patient name */}
+                                <Text style={styles.appName}>{app.patient_name}</Text>
                                 <Text style={styles.appReason}>{app.reason}</Text>
-                            </View>
+                            </TouchableOpacity>
                         )) : (
                             <View style={styles.noAppointmentCard}>
                                 <Text style={styles.noAppointmentText}>No upcoming appointments.</Text>
@@ -119,6 +177,7 @@ const BhwDashboardScreen = () => {
                 </View>
                 </View>
         </SafeAreaView>
+        </>
     );
 };
 
@@ -134,7 +193,8 @@ const styles = StyleSheet.create({
     quickButtonText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
     appointmentCard: { backgroundColor: 'white', borderRadius: 15, padding: 15, marginRight: 10, width: 150 },
     appDay: { fontSize: 14, fontWeight: 'bold', color: '#1e3a8a' },
-    appTime: { fontSize: 24, fontWeight: 'bold', color: '#1e3a8a', marginVertical: 5 },
+    appTime: { fontSize: 24, fontWeight: 'bold', color: '#1e3a8a', marginVertical: 2 },
+    appName: { fontSize: 14, fontWeight: '600', color: '#334155', marginVertical: 4 }, // <-- ADD THIS
     appReason: { fontSize: 12, color: '#6b7280' },
     noAppointmentCard: { backgroundColor: 'white', borderRadius: 15, padding: 20, width: 250, height: 110, justifyContent: 'center', alignItems: 'center' },
     noAppointmentText: { color: '#6b7280', fontStyle: 'italic', fontSize: 12 },

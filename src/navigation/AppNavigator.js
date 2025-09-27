@@ -5,11 +5,16 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Svg, { Path } from 'react-native-svg';
 
 import { HeaderProvider } from '../context/HeaderContext';
+import SettingsScreen from '../screens/SettingsScreen';
+import ProfileViewScreen from '../screens/ProfileViewScreen';
+import ProfileEditScreen from '../screens/ProfileEditScreen';
 
 import FixedHeader from '../components/layout/FixedHeader'; // Import the header
 import BhwDashboardScreen from '../components/bhw/BhwDashboardScreen';
 import BhwAppointmentScreen from '../components/bhw/BhwAppointmentScreen';
 import BhwInventoryScreen from '../components/bhw/BhwInventoryScreen';
+import BhwReportsScreen from '../components/bhw/BhwReportsScreen'; 
+import BhwViewReportScreen from '../components/bhw/ViewReportModal';
 import QRScannerScreen from '../screens/QRScannerScreen';
 import PatientManagementScreen from '../components/bhw/PatientManagementScreen'; // Import the screen
 
@@ -39,6 +44,8 @@ const BhwStack = () => (
         <Stack.Screen name="PatientManagement" component={PatientManagementScreen} />
         <Stack.Screen name="BhwAppointment" component={BhwAppointmentScreen} />
         <Stack.Screen name="BhwInventory" component={BhwInventoryScreen} />
+        <Stack.Screen name="BhwReports" component={BhwReportsScreen} />
+        <Stack.Screen name="BhwViewReport" component={BhwViewReportScreen} />
     </Stack.Navigator>
 );
 
@@ -85,7 +92,7 @@ function MainTabs() {
                     component={BhwStack} 
                     initialParams={{ screen: 'BhwInventory' }} 
                 />
-                <Tab.Screen name="Reports" component={PlaceholderScreen} />
+                <Tab.Screen name="Reports" component={BhwStack} initialParams={{ screen: 'BhwReports' }} />
             </Tab.Navigator>
         </HeaderProvider>    
     );
@@ -102,6 +109,9 @@ const AppNavigator = () => {
                 component={QRScannerScreen} 
                 options={{ presentation: 'fullScreenModal' }} 
             />
+            <RootStack.Screen name="Settings" component={SettingsScreen} options={{ presentation: 'modal' }} />
+            <RootStack.Screen name="ProfileView" component={ProfileViewScreen} options={{ presentation: 'modal' }} />
+            <RootStack.Screen name="ProfileEdit" component={ProfileEditScreen} options={{ presentation: 'modal' }} />
         </RootStack.Navigator>
     );
 };
