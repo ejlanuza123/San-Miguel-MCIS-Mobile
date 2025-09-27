@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     itemCell: { flex: 2.5, fontWeight: '600' },
     categoryCell: { flex: 2,textAlign: 'center' },
     stockCell: { flex: 1.5, textAlign: 'center' },
-    statusCell: { flex: 1.5, alignItems: 'flex-start' },
+    statusCell: { flex: 2, alignItems: 'center' },
     dateCell: { flex: 2,textAlign: 'center' },
     emptyText: { textAlign: 'center', marginTop: 30, color: '#6b7280' },
     controlsContainer: { padding: 20 },
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
     },
     badgeText: {
-        fontSize: 12,       // <-- FONT SIZE IS NOW 12
+        fontSize: 10,       // <-- FONT SIZE IS NOW 12
         fontWeight: '600',  // <-- FONT WEIGHT IS NOW SEMI-BOLD
     },
 });
