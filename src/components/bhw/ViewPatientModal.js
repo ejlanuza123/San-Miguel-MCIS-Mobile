@@ -3,6 +3,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
+import QRCode from 'react-native-qrcode-svg';
 
 // --- ICONS & HELPER COMPONENTS ---
 const BackArrowIcon = () => <Svg width="24" height="24" viewBox="0 0 24 24" fill="none"><Path d="M15 18L9 12L15 6" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></Svg>;
@@ -28,12 +29,25 @@ export default function ViewPatientModal({ patient, onClose }) {
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={onClose} style={styles.backButton}><BackArrowIcon /></TouchableOpacity>
-                <Text style={styles.headerTitle}>{`${patient.first_name} ${patient.last_name}`}</Text>
-                <View style={{ width: 24 }} />
+                <TouchableOpacity onPress={onClose}><BackArrowIcon /></TouchableOpacity>
+                <Text style={styles.headerTitle}>Maternal Patient Record</Text>
+                <View style={{width: 24}}/>
             </View>
             
             <ScrollView contentContainerStyle={styles.scrollContent}>
+                <View style={styles.profileSection}>
+                    <View style={styles.avatarPlaceholder}>
+                        {patient.patient_id ? (
+                            <QRCode 
+                                value={patient.patient_id}
+                                size={80} // Adjust size as needed
+                                backgroundColor="white" // Match the card background
+                            />
+                        ) : null}
+                    </View>
+                    <Text style={styles.profileName}>{`${patient.first_name} ${patient.last_name}`}</Text>
+                    <Text style={styles.patientId}>ID: {patient.patient_id}</Text>
+                </View>
                 <SectionHeader title="Personal Information" />
                 <View style={styles.card}>
                     <View style={styles.row}><Field label="Patient ID" value={patient.patient_id} /><Field label="Age" value={patient.age} /></View>
@@ -73,6 +87,31 @@ const styles = StyleSheet.create({
     headerTitle: { fontSize: 18, fontWeight: 'bold' },
     backButton: { padding: 5 },
     scrollContent: { padding: 20 },
+    profileSection: {
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    avatarPlaceholder: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: 'white',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 8,
+        elevation: 3,
+        padding: 10, // Padding to make the QR code look nice
+    },
+    profileName: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#1f2937',
+    },
+    patientId: {
+        fontSize: 14,
+        color: '#6b7280',
+        marginTop: 2,
+    },
     card: { backgroundColor: 'white', borderRadius: 15, padding: 20, marginBottom: 15, elevation: 2 },
     sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#1f2937', marginBottom: 10 },
     subSectionTitle: { fontSize: 14, fontWeight: '600', color: '#374151', marginTop: 10, marginBottom: 10 },

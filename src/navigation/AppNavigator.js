@@ -3,11 +3,13 @@ import { View, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Svg, { Path } from 'react-native-svg';
+import { useAuth } from '../context/AuthContext';
 
 import { HeaderProvider } from '../context/HeaderContext';
 import SettingsScreen from '../screens/SettingsScreen';
 import ProfileViewScreen from '../screens/ProfileViewScreen';
 import ProfileEditScreen from '../screens/ProfileEditScreen';
+
 
 import FixedHeader from '../components/layout/FixedHeader'; // Import the header
 import BhwDashboardScreen from '../components/bhw/BhwDashboardScreen';
@@ -17,6 +19,10 @@ import BhwReportsScreen from '../components/bhw/BhwReportsScreen';
 import BhwViewReportScreen from '../components/bhw/ViewReportModal';
 import QRScannerScreen from '../screens/QRScannerScreen';
 import PatientManagementScreen from '../components/bhw/PatientManagementScreen'; // Import the screen
+
+
+import BnsDashboardScreen from '../components/bns/BnsDashboardScreen';
+import ChildHealthRecordsScreen from '../components/bns/ChildHealthRecordsScreen';
 
 const PlaceholderScreen = ({ route }) => ( <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>{route.name} Screen</Text></View> );
 
@@ -49,7 +55,19 @@ const BhwStack = () => (
     </Stack.Navigator>
 );
 
+const BnsStack = () => (
+    <Stack.Navigator screenOptions={{ header: () => <FixedHeader /> }}>
+        <Stack.Screen name="BnsDashboard" component={BnsDashboardScreen} />
+        <Stack.Screen name="ChildHealthRecords" component={ChildHealthRecordsScreen} />
+    </Stack.Navigator>
+);
+
 function MainTabs() {
+    const { profile } = useAuth(); // Get the user's profile to check their role
+    const isBns = profile?.role === 'BNS';
+    const UserStack = isBns ? BnsStack : BhwStack;
+
+    // Conditionally choose which stack of screens to use based on the role
     return (
         <HeaderProvider>
             <Tab.Navigator
@@ -69,23 +87,35 @@ function MainTabs() {
                     },
                 })}
             >
-                <Tab.Screen name="Dashboard" component={BhwStack} />
-                {/* --- THIS LINE IS CORRECTED --- */}
                 <Tab.Screen 
-                    name="Patient" 
-                    component={BhwStack} 
-                    initialParams={{ screen: 'PatientManagement' }}
-                    listeners={({ navigation, route }) => ({
+                    name="Dashboard" 
+                    component={UserStack} 
+                    listeners={({ navigation }) => ({
                         tabPress: (e) => {
                             e.preventDefault();
-                            navigation.navigate('Patient', { screen: 'PatientManagement', params: route.params });
+                            navigation.navigate('Dashboard', { screen: isBns ? 'BnsDashboard' : 'BhwDashboard' });
                         },
                     })}
-                />                
+                />
+                <Tab.Screen 
+                    name="Patient" 
+                    component={UserStack}
+                    listeners={({ navigation }) => ({
+                        tabPress: (e) => {
+                            e.preventDefault();
+                            navigation.navigate('Patient', { screen: isBns ? 'ChildHealthRecords' : 'PatientManagement' });
+                        },
+                    })}
+                />
                 <Tab.Screen 
                     name="Appointment" 
-                    component={BhwStack} 
-                    initialParams={{ screen: 'BhwAppointment' }} 
+                    component={UserStack}
+                    listeners={({ navigation }) => ({
+                        tabPress: (e) => {
+                            e.preventDefault();
+                            navigation.navigate('Appointment', { screen: isBns ? 'BnsAppointment' : 'BhwAppointment' });
+                        },
+                    })}
                 />
                 <Tab.Screen 
                     name="Inventory" 

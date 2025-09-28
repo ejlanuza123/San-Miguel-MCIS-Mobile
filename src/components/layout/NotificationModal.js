@@ -16,7 +16,7 @@ const getIconForType = (type) => {
     if (type.includes('stock_alert')) return <AlertIcon />;
     if (type.includes('due_soon')) return <ClockIcon />;
     if (type.includes('appointment')) return <CalendarIcon />;
-    return <CheckIcon />; // Default icon
+    return <AlertIcon />; // Default icon
 };
 
 const NotificationItem = ({ item, onDelete, onPress }) => (

@@ -27,25 +27,45 @@ const FlashIcon = ({ active }) => (
 export default function QRScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
-  const [flashMode, setFlashMode] = useState('off'); // "off" | "on" | "torch" | "auto"
+  const [flashMode, setFlashMode] = useState('off'); // "off" | "on" | "auto"
+  const [hasFlash, setHasFlash] = useState(false);
   const navigation = useNavigation();
 
   useEffect(() => {
     requestPermission();
   }, []);
 
+  // Check if device has flash capability
+  const checkFlashAvailability = async () => {
+    // For expo-camera, we need to check camera capabilities
+    // This is a simple workaround - you might need to implement
+    // a more robust check based on your specific needs
+    setHasFlash(true); // Assume it has flash for now
+  };
+
+  useEffect(() => {
+    checkFlashAvailability();
+  }, []);
+
   const handleBarCodeScanned = ({ data }) => {
-    if (!scanned) {
-      setScanned(true);
-      Vibration.vibrate();
-      navigation.navigate('Main', {
-        screen: 'Patient',
-        params: {
-            screen: 'PatientManagement',   // 👈 explicitly go to this screen
-            params: { scannedPatientId: data },
-        },
-        });
-    }
+        if (!scanned) {
+            setScanned(true);
+            Vibration.vibrate();
+            
+            // This logic determines where to navigate back to
+            const returnScreen = route.params?.returnScreen;
+            let destination = 'PatientManagement'; // Default to BHW screen
+
+            if (returnScreen === 'BnsDashboard' || returnScreen === 'ChildHealthRecords') {
+                destination = 'ChildHealthRecords';
+            }
+            
+            navigation.navigate(destination, { scannedPatientId: data });
+        }
+    };
+
+  const toggleFlash = () => {
+    setFlashMode(current => current === 'off' ? 'on' : 'off');
   };
 
   if (!permission) {
@@ -69,7 +89,7 @@ export default function QRScannerScreen() {
       <CameraView
         onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-        flash={flashMode} // ✅ string values only
+        flash={flashMode}
         style={StyleSheet.absoluteFillObject}
       />
       <SafeAreaView style={styles.overlay}>
@@ -80,10 +100,11 @@ export default function QRScannerScreen() {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>QR Scanner</Text>
           <TouchableOpacity
-            onPress={() => setFlashMode(flashMode === 'off' ? 'torch' : 'off')}
+            onPress={toggleFlash}
             style={styles.iconButton}
+            disabled={!hasFlash} // Disable if no flash available
           >
-            <FlashIcon active={flashMode === 'torch'} />
+            <FlashIcon active={flashMode === 'on'} />
           </TouchableOpacity>
         </View>
 
@@ -96,6 +117,9 @@ export default function QRScannerScreen() {
             <View style={[styles.corner, styles.bottomRight]} />
           </View>
           <Text style={styles.instructionText}>Position QR code within the frame</Text>
+          {!hasFlash && (
+            <Text style={styles.warningText}>Flash not available on this device</Text>
+          )}
         </View>
 
         <View style={styles.footer} />
@@ -136,6 +160,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 20,
     fontWeight: '500',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 5,
+  },
+  warningText: {
+    color: 'yellow',
+    fontSize: 14,
+    marginTop: 10,
     backgroundColor: 'rgba(0,0,0,0.4)',
     paddingHorizontal: 10,
     paddingVertical: 5,

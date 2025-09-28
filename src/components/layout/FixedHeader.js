@@ -64,7 +64,11 @@ const FixedHeader = () => {
     
     const { searchTerm, setSearchTerm, placeholder, isFilterOpen, setIsFilterOpen, filterOptions } = useHeader();
     const route = useRoute();
-    const showQrIcon = route.name === 'BhwDashboard' || route.name === 'PatientManagement';
+    const showQrIcon = 
+    route.name === 'BhwDashboard' || 
+    route.name === 'PatientManagement' ||
+    route.name === 'BnsDashboard' ||
+    route.name === 'ChildHealthRecords';
     const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -105,9 +109,27 @@ const FixedHeader = () => {
 
     // --- NEW HANDLER FUNCTIONS FOR MODAL ACTIONS ---
     const handleMarkAllRead = async () => {
-        if (!user) return;
-        await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
-        fetchNotifications(); // Refresh list
+        if (!user || unreadCount === 0) return; // Do nothing if there's nothing to mark
+
+        // 1. Send the update request to the database
+        const { error } = await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('user_id', user.id)
+            .eq('is_read', false);
+
+        // 2. If the database update is successful, update the app's state directly
+        if (!error) {
+            // Update the local list of notifications to reflect the change
+            setNotifications(currentNotifications => 
+                currentNotifications.map(n => ({ ...n, is_read: true }))
+            );
+            // Manually set the unread count to 0
+            setUnreadCount(0);
+        } else {
+            // If there was an error, you can notify the user
+            console.error("Error marking notifications as read:", error);
+        }
     };
 
     const handleDeleteAll = async () => {
@@ -176,7 +198,7 @@ const FixedHeader = () => {
                     
                     {/* 5. Conditionally render the QR icon */}
                     {showQrIcon && (
-                        <TouchableOpacity onPress={() => navigation.navigate('QRScanner')}>
+                        <TouchableOpacity onPress={() => navigation.navigate('QRScanner', { returnScreen: route.name })}>
                             <QRScanIcon />
                         </TouchableOpacity>
                     )}

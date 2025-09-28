@@ -183,7 +183,7 @@ const BhwDashboardScreen = () => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f0f4f8' },
-    contentArea: { flex: 1, paddingTop: 0, marginTop: -15 },
+    contentArea: { flex: 1, paddingTop: 0, marginTop: -25 },
     section: { paddingHorizontal: 20, marginBottom: 15 },
     sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 10 },
     quickAccessContainer: { flexDirection: 'row', gap: 15 },

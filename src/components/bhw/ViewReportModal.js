@@ -7,6 +7,7 @@ import * as Sharing from 'expo-sharing';
 import { useAuth } from '../../context/AuthContext';
 import Svg, { Path } from 'react-native-svg';
 
+
 // --- ICONS & HELPER COMPONENTS ---
 const BackArrowIcon = () => <Svg width="24" height="24" viewBox="0 0 24 24" fill="none"><Path d="M15 18L9 12L15 6" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></Svg>;
 const FileIcon = () => <Svg width="24" height="24" viewBox="0 0 24 24" fill="none"><Path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-7-7z" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><Path d="M13 2v7h7" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></Svg>;
