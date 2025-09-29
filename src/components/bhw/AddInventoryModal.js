@@ -1,8 +1,9 @@
 // src/components/bhw/AddInventoryModal.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, SafeAreaView, Modal } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Modal } from 'react-native';
 import { supabase } from '../../services/supabase';
 import { useNotification } from '../../context/NotificationContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { logActivity } from '../../services/activityLogger';
 import CalendarPickerModal from './CalendarPickerModal'; // Make sure this path is correct
 import Svg, { Path } from 'react-native-svg';

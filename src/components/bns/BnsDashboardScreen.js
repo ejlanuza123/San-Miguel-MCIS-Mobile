@@ -7,6 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AddBnsAppointmentModal from './AddBnsAppointmentModal';
 import AddChildModal from './AddChildModal';
+import ViewBnsAppointmentModal from './ViewBnsAppointmentModal';
 
 // --- HELPER COMPONENTS ---
 const Calendar = () => {
@@ -45,6 +46,13 @@ export default function BnsDashboardScreen() {
     const [appointments, setAppointments] = useState([]);
     const [isAddAppointmentModalOpen, setIsAddAppointmentModalOpen] = useState(false);
     const [isAddChildModalOpen, setIsAddChildModalOpen] = useState(false);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [selectedAppointment, setSelectedAppointment] = useState(null);
+
+    const handleViewAppointment = (appointment) => {
+        setSelectedAppointment(appointment);
+        setIsViewModalOpen(true);
+    };
 
     const fetchDashboardData = useCallback(async () => {
         if (!profile) return;
@@ -66,6 +74,7 @@ export default function BnsDashboardScreen() {
             fetchDashboardData();
         }, [fetchDashboardData])
     );
+    
 
     return (
         <>
@@ -74,6 +83,21 @@ export default function BnsDashboardScreen() {
             </Modal>
             <Modal visible={isAddChildModalOpen} animationType="slide" onRequestClose={() => setIsAddChildModalOpen(false)}>
                 <AddChildModal onClose={() => setIsAddChildModalOpen(false)} onSave={fetchDashboardData} />
+            </Modal>
+            <Modal
+                transparent={true}
+                visible={isViewModalOpen}
+                animationType="fade"
+                onRequestClose={() => setIsViewModalOpen(false)}
+                >
+                <View style={styles.modalOverlay}>
+                    {selectedAppointment && (
+                    <ViewBnsAppointmentModal 
+                        appointment={selectedAppointment} 
+                        onClose={() => setIsViewModalOpen(false)} 
+                    />
+                    )}
+                </View>
             </Modal>
             <SafeAreaView style={styles.container}>
                 <View style={styles.contentArea}>
@@ -93,11 +117,11 @@ export default function BnsDashboardScreen() {
                         <Text style={styles.sectionTitle}>Upcoming Appointments</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                             {appointments.length > 0 ? appointments.map(app => (
-                                <View key={app.id} style={styles.appointmentCard}>
+                                <TouchableOpacity key={app.id} style={styles.appointmentCard} onPress={() => handleViewAppointment(app)}>
                                     <Text style={styles.appDay}>{new Date(app.date).toLocaleDateString('en-US', { weekday: 'long' })}</Text>
                                     <Text style={styles.appTime}>{app.time}</Text>
                                     <Text style={styles.appReason}>{app.reason}</Text>
-                                </View>
+                                </TouchableOpacity>
                             )) : (
                                 <View style={styles.noAppointmentCard}><Text style={styles.noAppointmentText}>No upcoming appointments.</Text></View>
                             )}
@@ -139,4 +163,10 @@ const styles = StyleSheet.create({
     calendarDay: { width: '14.28%', height: 35, justifyContent: 'center', alignItems: 'center' },
     today: { width: 30, height: 30, backgroundColor: '#60a5fa', borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
     todayText: { color: 'white', fontWeight: 'bold' },
+    modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    },
 });

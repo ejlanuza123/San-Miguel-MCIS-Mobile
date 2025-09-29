@@ -5,6 +5,7 @@ import {
     ActivityIndicator, FlatList, Modal, KeyboardAvoidingView, 
     Platform, ScrollView 
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { supabase } from '../../services/supabase';
 import { useNotification } from '../../context/NotificationContext';
 import { logActivity } from '../../services/activityLogger';
@@ -159,7 +160,18 @@ export default function AddAppointmentModal({ onClose, onSave }) {
 
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Appointment Type</Text>
-                            <TextInput style={styles.input} placeholder="e.g., Prenatal Check-up" value={formData.reason} onChangeText={(text) => setFormData(prev => ({...prev, reason: text}))}/>
+                            <View style={styles.pickerContainer}>
+                                <Picker
+                                    selectedValue={formData.reason}
+                                    onValueChange={(itemValue) => handleChange('reason', itemValue)}
+                                    style={styles.picker}
+                                >
+                                    <Picker.Item label="Select appointment type..." value="" />
+                                    <Picker.Item label="Prenatal Check-up" value="Prenatal Check-up" />
+                                    <Picker.Item label="Vaccination" value="Vaccination" />
+                                    <Picker.Item label="Postnatal Visit" value="Postnatal Visit" />
+                                </Picker>
+                            </View>
                         </View>
 
                         <View style={styles.row}>
@@ -222,4 +234,15 @@ const styles = StyleSheet.create({
     },
     searchResultsContainer: { marginTop: 5, backgroundColor: 'white', borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db', maxHeight: 150 },
     searchResultItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+    pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 10,
+    backgroundColor: '#f9fafb',
+    justifyContent: 'center',
+    },
+    picker: {
+        height: 50,
+        width: '100%',
+    },
 });

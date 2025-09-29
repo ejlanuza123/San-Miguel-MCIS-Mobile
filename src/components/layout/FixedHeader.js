@@ -9,6 +9,7 @@ import { useRoute } from '@react-navigation/native';   // 2. Import useRoute
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'; // Import animation hooks
 import NotificationModal from './NotificationModal';
 import { supabase } from '../../services/supabase';
+import { useNotification } from '../../context/NotificationContext';
 
 // --- ICONS ---
 const NotificationIcon = () => <Svg width={24} height={24} viewBox="0 0 24 24"><Path fill="#333" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></Svg>;
@@ -58,248 +59,86 @@ const FilterDropdown = ({ options, isVisible, onClose }) => {
         </Modal>
     );
 };
-const FixedHeader = () => {
-    const { profile, user } = useAuth();
+export default function FixedHeader() {
+    const { profile } = useAuth();
     const navigation = useNavigation();
-    
-    const { searchTerm, setSearchTerm, placeholder, isFilterOpen, setIsFilterOpen, filterOptions } = useHeader();
     const route = useRoute();
-    const showQrIcon = 
-    route.name === 'BhwDashboard' || 
-    route.name === 'PatientManagement' ||
-    route.name === 'BnsDashboard' ||
-    route.name === 'ChildHealthRecords';
+    const { searchTerm, setSearchTerm, placeholder, isFilterOpen, setIsFilterOpen, filterOptions } = useHeader();
+    const { unreadCount } = useNotification();
     const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
-    const [notifications, setNotifications] = useState([]);
-    const [unreadCount, setUnreadCount] = useState(0);
 
-    // --- NEW LOGIC FOR FETCHING AND SUBSCRIBING TO NOTIFICATIONS ---
-    const fetchNotifications = useCallback(async () => {
-        if (!user) return;
-        const { data, error } = await supabase
-            .from('notifications')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-
-        if (data) {
-            setNotifications(data);
-            setUnreadCount(data.filter(n => !n.is_read).length);
+    // CHANGED: Added pink theme for USER role
+    const getHeaderStyle = () => {
+        switch (profile?.role) {
+            case 'BNS':
+                return { backgroundColor: '#dcfce7', userNameColor: '#166534' }; // Light Green
+            case 'USER/MOTHER/GUARDIAN':
+                return { backgroundColor: '#fce7f3', userNameColor: '#9d174d' }; // Light Pink
+            case 'BHW':
+            default:
+                return { backgroundColor: '#dbeafe', userNameColor: '#1e3a8a' }; // Light Blue
         }
-    }, [user]);
-
-    useEffect(() => {
-        fetchNotifications(); // Fetch on initial load
-
-        // Set up real-time subscription
-        const channel = supabase
-            .channel('public:notifications')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user?.id}` },
-                (payload) => {
-                    fetchNotifications(); // Re-fetch when a change occurs
-                }
-            )
-            .subscribe();
-
-        // Cleanup subscription on component unmount
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [user, fetchNotifications]);
-
-    // --- NEW HANDLER FUNCTIONS FOR MODAL ACTIONS ---
-    const handleMarkAllRead = async () => {
-        if (!user || unreadCount === 0) return; // Do nothing if there's nothing to mark
-
-        // 1. Send the update request to the database
-        const { error } = await supabase
-            .from('notifications')
-            .update({ is_read: true })
-            .eq('user_id', user.id)
-            .eq('is_read', false);
-
-        // 2. If the database update is successful, update the app's state directly
-        if (!error) {
-            // Update the local list of notifications to reflect the change
-            setNotifications(currentNotifications => 
-                currentNotifications.map(n => ({ ...n, is_read: true }))
-            );
-            // Manually set the unread count to 0
-            setUnreadCount(0);
-        } else {
-            // If there was an error, you can notify the user
-            console.error("Error marking notifications as read:", error);
-        }
-    };
-
-    const handleDeleteAll = async () => {
-        if (!user) return;
-        await supabase.from('notifications').delete().eq('user_id', user.id);
-        fetchNotifications(); // Refresh list
-    };
-
-    const handleDeleteOne = async (id) => {
-        await supabase.from('notifications').delete().eq('id', id);
-        fetchNotifications(); // Refresh list
     };
     
-    const handleNotificationPress = async (notification) => {
-        // Mark as read when clicked
-        await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id);
-        setIsNotifModalOpen(false); // Close modal
-        // Navigate based on type
-        switch (notification.type) {
-            case 'inventory_alert':
-                navigation.navigate('Main', { screen: 'Inventory' });
-                break;
-            case 'appointment_reminder':
-            case 'patient_due_soon':
-                navigation.navigate('Main', { screen: 'Appointment' });
-                break;
-            // Add more cases for other notification types
-            default:
-                break;
-        }
-    };
+    const headerStyle = getHeaderStyle();
+    const isUserRole = profile?.role === 'USER/MOTHER/GUARDIAN';
+    const showQrIcon = ['BhwDashboard', 'PatientManagement', 'BnsDashboard', 'ChildHealthRecords'].includes(route.name);
 
     return (
         <>
-            <SafeAreaView style={styles.fixedHeaderContainer} edges={['top']}>
+            <SafeAreaView style={[styles.fixedHeaderContainer, { backgroundColor: headerStyle.backgroundColor }]} edges={['top']}>
                 <View style={styles.header}>
                     <View style={styles.profileInfo}>
-                        <Image source={{ uri: profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.first_name || 'U'}`}} style={styles.avatar} />
+                        <Image source={{ uri: profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.full_name || 'U'}`}} style={styles.avatar} />
                         <View>
                             <Text style={styles.welcomeText}>Hi, Welcome Back</Text>
-                            <Text style={styles.userName}>{profile?.first_name} {profile?.last_name}</Text>
+                            <Text style={[
+                                styles.userName, 
+                                { color: headerStyle.userNameColor },
+                                // ADD THIS LINE: Apply a different font size for the user role
+                                isUserRole && { fontSize: 16 } // You can change 20 to any size you like
+                            ]}>
+                                {profile?.full_name}
+                            </Text>
                         </View>
                     </View>
                     <View style={styles.headerIcons}>
                         <TouchableOpacity onPress={() => setIsNotifModalOpen(true)}>
                             <BellIcon />
-                            {unreadCount > 0 && (
-                                <View style={styles.badgeContainer}>
-                                    <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-                                </View>
-                            )}
+                            {unreadCount > 0 && <View style={styles.badgeContainer}><Text style={styles.badgeText}>{unreadCount}</Text></View>}
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-                        <SettingsIcon />
-                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => navigation.navigate('Settings')}><SettingsIcon /></TouchableOpacity>
                     </View>
                 </View>
-                <View style={styles.searchContainer}>
-                    <SearchIcon />
-                    <TextInput
-                        placeholder={placeholder} // Use placeholder from context
-                        style={styles.searchInput}
-                        value={searchTerm} // Use value from context
-                        onChangeText={setSearchTerm} // Use setter from context
-                    />
-                    
-                    {/* 5. Conditionally render the QR icon */}
-                    {showQrIcon && (
-                        <TouchableOpacity onPress={() => navigation.navigate('QRScanner', { returnScreen: route.name })}>
-                            <QRScanIcon />
-                        </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity onPress={() => setIsFilterOpen(true)}>
-                            <FilterIcon />
-                    </TouchableOpacity>
-                </View>
+                
+                {/* CHANGED: Conditionally render search bar only for non-user roles */}
+                {!isUserRole && (
+                    <View style={styles.searchContainer}>
+                        <SearchIcon />
+                        <TextInput placeholder={placeholder} style={styles.searchInput} value={searchTerm} onChangeText={setSearchTerm} />
+                        {showQrIcon && <TouchableOpacity onPress={() => navigation.navigate('QRScanner')}><QRScanIcon /></TouchableOpacity>}
+                        <TouchableOpacity onPress={() => setIsFilterOpen(true)}><FilterIcon /></TouchableOpacity>
+                    </View>
+                )}
             </SafeAreaView>
-            <NotificationModal 
-                isVisible={isNotifModalOpen}
-                onClose={() => setIsNotifModalOpen(false)}
-                notifications={notifications}
-                onMarkAllRead={handleMarkAllRead}
-                onDeleteAll={handleDeleteAll}
-                onDeleteOne={handleDeleteOne}
-                onNotificationPress={handleNotificationPress}
-            />
-            <FilterDropdown 
-                isVisible={isFilterOpen}
-                onClose={() => setIsFilterOpen(false)}
-                options={filterOptions}
-            />
+            
+            <NotificationModal isVisible={isNotifModalOpen} onClose={() => setIsNotifModalOpen(false)} />
+            <FilterDropdown isVisible={isFilterOpen} onClose={() => setIsFilterOpen(false)} options={filterOptions} />
         </>
-
     );
-};
+}
+
 
 const styles = StyleSheet.create({
-    fixedHeaderContainer: {
-        backgroundColor: '#dbeafe',
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: 20,
-        paddingBottom: 35,
-    },
+    fixedHeaderContainer: { paddingBottom: 10 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10 },
     profileInfo: { flexDirection: 'row', alignItems: 'center' },
     avatar: { width: 50, height: 50, borderRadius: 25, marginRight: 15 },
     welcomeText: { fontSize: 14, color: '#6b7280' },
-    userName: { fontSize: 18, fontWeight: 'bold', color: '#1e3a8a' },
+    userName: { fontSize: 18, fontWeight: 'bold' },
     headerIcons: { flexDirection: 'row', gap: 15 },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'white',
-        borderRadius: 12,
-        paddingHorizontal: 15,
-        marginHorizontal: 20,
-        marginTop: -20,
-        marginBottom: 10,
-        gap: 10,
-        elevation: 5,
-    },
+    searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', borderRadius: 12, paddingHorizontal: 15, marginHorizontal: 20, marginTop: 15, gap: 10, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
     searchInput: { flex: 1, paddingVertical: 10, fontSize: 16 },
-    filterOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.2)',
-        alignItems: 'flex-end',
-    },
-    filterDropdown: {
-        position: 'absolute',
-        top: 110, // Adjust this value to position it correctly below your header
-        right: 20,
-        backgroundColor: 'white',
-        borderRadius: 12,
-        padding: 8,
-        elevation: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-    },
-    filterOption: {
-        paddingVertical: 10,
-        paddingHorizontal: 15,
-    },
-    filterOptionText: {
-        fontSize: 16,
-        color: '#333',
-    },
-    badgeContainer: {
-        position: 'absolute',
-        top: -5,
-        right: -5,
-        backgroundColor: '#dc2626', // Red
-        borderRadius: 10,
-        minWidth: 20,
-        height: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#dbeafe',
-    },
-    badgeText: {
-        color: 'white',
-        fontSize: 10,
-        fontWeight: 'bold',
-    },
+    badgeContainer: { position: 'absolute', top: -5, right: -5, backgroundColor: '#dc2626', borderRadius: 10, minWidth: 20, height: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'white' },
+    badgeText: { color: 'white', fontSize: 10, fontWeight: 'bold' },
 });
-export default FixedHeader;

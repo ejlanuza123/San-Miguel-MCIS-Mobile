@@ -1,3 +1,4 @@
+//App.js
 import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useState, useEffect } from 'react';
@@ -22,8 +23,8 @@ function RootNavigator() {
     const [isFirstLaunch, setIsFirstLaunch] = useState(null);
 
     useEffect(() => {
-        // FOR DEVELOPMENT: Uncomment the line below to always see the onboarding flow
-        AsyncStorage.removeItem('hasCompletedOnboarding');
+    // FOR DEVELOPMENT: Uncomment the line below to always see the onboarding flow
+    // AsyncStorage.removeItem('hasCompletedOnboarding'); // Now it's safely commented out
 
         AsyncStorage.getItem('hasCompletedOnboarding').then(value => {
             if (value === null) {

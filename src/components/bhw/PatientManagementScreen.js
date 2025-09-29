@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, TouchableOpacity, Image, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Image, Modal, ActivityIndicator } from 'react-native';
 import { supabase } from '../../services/supabase';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native'; // 1. Import useFocusEffect
 import { useHeader } from '../../context/HeaderContext';

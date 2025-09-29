@@ -1,30 +1,97 @@
 // src/context/NotificationContext.js
-import React, { createContext, useState, useContext, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import { View, StyleSheet } from 'react-native';
-import Notification from '../components/layout/Notification'; // Use a default import
+import { supabase } from '../services/supabase';
+import { useAuth } from './AuthContext';
+import Notification from '../components/layout/Notification';
 
 const NotificationContext = createContext();
 
 export const useNotification = () => useContext(NotificationContext);
 
 export const NotificationProvider = ({ children }) => {
+    const { user } = useAuth();
     const [notifications, setNotifications] = useState([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [toastNotifications, setToastNotifications] = useState([]);
 
+    // --- LOGIC FOR THE NOTIFICATION BELL ---
+    const fetchNotifications = useCallback(async () => {
+        if (!user) return;
+        const { data, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (data) {
+            setNotifications(data);
+            setUnreadCount(data.filter(n => !n.is_read).length);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        fetchNotifications(); // Fetch on initial load
+
+        const channel = supabase
+            .channel('public:notifications')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user?.id}` },
+                () => fetchNotifications()
+            ).subscribe();
+
+        return () => supabase.removeChannel(channel);
+    }, [user, fetchNotifications]);
+    
+    const markAllRead = async () => {
+        if (!user || unreadCount === 0) return;
+        const { error } = await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
+        if (!error) {
+            setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+            setUnreadCount(0);
+        }
+    };
+
+    const deleteAll = async () => {
+        if (!user) return;
+        const { error } = await supabase.from('notifications').delete().eq('user_id', user.id);
+        if (!error) {
+            setNotifications([]);
+            setUnreadCount(0);
+        }
+    };
+
+    const deleteOne = async (id) => {
+        await supabase.from('notifications').delete().eq('id', id);
+        // Re-fetching is okay here since it's a single, less frequent action
+        fetchNotifications(); 
+    };
+
+    // --- LOGIC FOR POP-UP TOASTS ---
     const addNotification = useCallback((message, type = 'success') => {
         const id = Math.random().toString(36).substr(2, 9);
-        setNotifications(prev => [...prev, { id, message, type }]);
+        setToastNotifications(prev => [...prev, { id, message, type }]);
     }, []);
 
-    const removeNotification = useCallback((id) => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
+    const removeToast = useCallback((id) => {
+        setToastNotifications(prev => prev.filter(n => n.id !== id));
     }, []);
+
+    const value = {
+        notifications,
+        unreadCount,
+        markAllRead,
+        deleteAll,
+        deleteOne,
+        addNotification, // This is for the pop-up toasts
+        refetch: fetchNotifications, // Allow components to trigger a manual refresh
+    };
 
     return (
-        <NotificationContext.Provider value={{ addNotification }}>
+        <NotificationContext.Provider value={value}>
             {children}
-            <View style={styles.container}>
-                {notifications.map(n => (
-                    <Notification key={n.id} notification={n} onClear={removeNotification} />
+            <View style={styles.toastContainer}>
+                {toastNotifications.map(n => (
+                    <Notification key={n.id} notification={n} onClear={removeToast} />
                 ))}
             </View>
         </NotificationContext.Provider>
@@ -32,9 +99,9 @@ export const NotificationProvider = ({ children }) => {
 };
 
 const styles = StyleSheet.create({
-    container: {
+    toastContainer: {
         position: 'absolute',
-        top: 85, // Position notifications below the header
+        bottom: 95,
         right: 10,
         left: 10,
         zIndex: 1000,

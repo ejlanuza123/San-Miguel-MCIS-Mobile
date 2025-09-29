@@ -71,13 +71,41 @@ const RegisterScreen = ({ navigation }) => {
             return;
         }
         setLoading(true);
-        const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName, role: 'USER/MOTHER/GUARDIAN' } } });
-        if (error) {
-            Alert.alert("Registration Error", error.message);
-        } else {
-            Alert.alert("Registration Successful", "Please check your email to verify your account.");
-            navigation.goBack();
+        
+        // Step 1: Sign up the user in the auth system
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    full_name: fullName,
+                    role: 'USER/MOTHER/GUARDIAN'
+                }
+            }
+        });
+
+        if (authError) {
+            Alert.alert("Registration Error", authError.message);
+            setLoading(false);
+            return; // Stop if the sign-up failed
         }
+
+        if (authData.user) {
+            // --- NEW AND IMPORTANT PART ---
+            // Step 2: If sign-up was successful, link the new user ID to the patient record.
+            const { error: updateError } = await supabase
+                .from('patients')
+                .update({ user_id: authData.user.id }) // Set the user_id column
+                .eq('patient_id', patientId);         // Find the patient by their patient_id
+
+            if (updateError) {
+                Alert.alert("Linking Error", "Your account was created, but we couldn't link it to your patient record. Please contact support.");
+            } else {
+                Alert.alert("Registration Successful", "Please check your email to verify your account.");
+                navigation.goBack();
+            }
+        }
+        
         setLoading(false);
     };
 
