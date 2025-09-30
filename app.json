@@ -1,12 +1,13 @@
 {
   "expo": {
-    "name": "SanMiguelMCIS_Mobile",
+    "name": "San Miguel MCIS Mobile",
     "slug": "SanMiguelMCIS_Mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./src/assets/logo.jpg",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "scheme": "sm.mcis",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -17,13 +18,19 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./src/assets/logo.jpg",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.ejlanuza123.SanMiguelMCIS_Mobile"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./src/assets/logo.jpg"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "616eb46e-ca17-4d5e-8a6d-6cb060f5a378"
+      }
     }
   }
 }

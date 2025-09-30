@@ -32,6 +32,7 @@ const RegisterScreen = ({ navigation }) => {
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState(''); // NEW: State for the confirm password field
     const [loading, setLoading] = useState(false);
     const [isVerified, setIsVerified] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState('');
@@ -50,7 +51,7 @@ const RegisterScreen = ({ navigation }) => {
                 .from('patients')
                 .select('first_name, middle_name, last_name')
                 .eq('patient_id', trimmedId)
-                .single();
+                .maybeSingle(); 
             if (data) {
                 const constructedFullName = `${data.first_name || ''} ${data.middle_name || ''} ${data.last_name || ''}`.trim().replace(/\s+/g, ' ');
                 setVerificationStatus('verified');
@@ -77,29 +78,26 @@ const RegisterScreen = ({ navigation }) => {
             email,
             password,
             options: {
-                data: {
-                    full_name: fullName,
-                    role: 'USER/MOTHER/GUARDIAN'
-                }
+                data: { full_name: fullName, role: 'USER/MOTHER/GUARDIAN' }
             }
         });
 
         if (authError) {
             Alert.alert("Registration Error", authError.message);
             setLoading(false);
-            return; // Stop if the sign-up failed
+            return;
         }
 
+        // Step 2: If sign-up was successful, call the new database function to link the records.
         if (authData.user) {
-            // --- NEW AND IMPORTANT PART ---
-            // Step 2: If sign-up was successful, link the new user ID to the patient record.
-            const { error: updateError } = await supabase
-                .from('patients')
-                .update({ user_id: authData.user.id }) // Set the user_id column
-                .eq('patient_id', patientId);         // Find the patient by their patient_id
+            // CHANGED: Instead of .update(), we now use .rpc() to call our secure function
+            const { error: rpcError } = await supabase.rpc('link_patient_to_user', { 
+                patient_id_to_link: patientId.trim(),
+                user_id_to_set: authData.user.id
+            });
 
-            if (updateError) {
-                Alert.alert("Linking Error", "Your account was created, but we couldn't link it to your patient record. Please contact support.");
+            if (rpcError) {
+                Alert.alert("Linking Error", "Your account was created, but we couldn't link it. Please contact support.");
             } else {
                 Alert.alert("Registration Successful", "Please check your email to verify your account.");
                 navigation.goBack();
@@ -138,6 +136,10 @@ const RegisterScreen = ({ navigation }) => {
                         <LockIcon />
                         <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
                     </View>
+                    <View style={styles.inputContainer}>
+                        <LockIcon />
+                        <TextInput style={styles.input} placeholder="Confirm Password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
+                    </View>
                     <TouchableOpacity style={[styles.button, !isVerified && styles.buttonDisabled]} onPress={handleSignUp} disabled={loading || !isVerified}>
                         <Text style={styles.buttonText}>{loading ? 'Signing Up...' : 'Sign Up'}</Text>
                     </TouchableOpacity>
@@ -165,13 +167,7 @@ const styles = StyleSheet.create({
     buttonDisabled: { backgroundColor: '#9ca3af' },
     buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
     linkText: { color: '#2563eb', marginTop: 20, fontWeight: '600' },
-    backButton: {
-        position: 'absolute',
-        bottom: 80,
-        padding: 12,
-        backgroundColor: 'rgba(0, 0, 0, 0.25)', // Semi-transparent background
-        borderRadius: 30, // Make it a circle
-    },
+    backButton: { position: 'absolute', bottom: 80, padding: 12, backgroundColor: 'rgba(0, 0, 0, 0.25)', borderRadius: 30, },
     checkingText: { height: 18, fontSize: 12, color: '#6b7280', alignSelf: 'flex-start', marginLeft: 5, marginTop: 2 },
     verifiedText: { height: 18, fontSize: 12, color: '#16a34a', fontWeight: '600', alignSelf: 'flex-start', marginLeft: 5, marginTop: 2 },
     notFoundText: { height: 18, fontSize: 12, color: '#dc2626', fontWeight: '600', alignSelf: 'flex-start', marginLeft: 5, marginTop: 2 },

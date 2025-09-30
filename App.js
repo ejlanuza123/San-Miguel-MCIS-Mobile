@@ -18,6 +18,21 @@ import AppNavigator from './src/navigation/AppNavigator';
 
 const Stack = createNativeStackNavigator();
 
+const linking = {
+  prefixes: ['sm.mcis://'],
+  config: {
+    screens: {
+      // This tells the navigator that the path "login"
+      // should navigate to the 'Login' screen inside the 'Auth' navigator.
+      Auth: {
+        screens: {
+          Login: 'login',
+        },
+      },
+    },
+  },
+};
+
 function RootNavigator() {
     const { user, loading } = useAuth();
     const [isFirstLaunch, setIsFirstLaunch] = useState(null);
@@ -40,7 +55,7 @@ function RootNavigator() {
     }
 
     return (
-        <NavigationContainer>
+        <NavigationContainer linking={linking}>
             <Stack.Navigator 
                 screenOptions={{ headerShown: false }}
                 initialRouteName={

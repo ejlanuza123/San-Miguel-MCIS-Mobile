@@ -189,11 +189,18 @@ export default function ViewUserRecords() {
                 renderTabBar={props => (
                     <TabBar
                         {...props}
-                        indicatorStyle={{ backgroundColor: '#c026d3' }}
-                        style={{ backgroundColor: 'white', elevation: 1 }}
-                        labelStyle={{ color: '#4b5563', fontSize: 10, fontWeight: 'bold' }}
                         scrollEnabled
+                        indicatorStyle={{ backgroundColor: '#c026d3' }}
+                        style={{ backgroundColor: 'white' }}
                         tabStyle={{ width: 'auto' }}
+                        labelStyle={{ 
+                            fontSize: 12, 
+                            fontWeight: 'bold', 
+                            textTransform: 'uppercase',
+                            margin: 0,
+                        }}
+                        activeColor="#c026d3"
+                        inactiveColor="#6b7280"
                     />
                 )}
             />
