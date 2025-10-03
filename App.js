@@ -7,7 +7,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NotificationProvider } from './src/context/NotificationContext'; // <-- 1. IMPORT THE PROVIDER
-
+import { initDatabase } from './src/services/database'; // <-- 1. IMPORT
+import { syncOfflineData } from './src/services/syncService'; // <-- 2. IMPORT
+import NetInfo from '@react-native-community/netinfo'
 
 // Import all screens and navigators
 import SplashScreen from './src/screens/SplashScreen';
@@ -48,6 +50,21 @@ function RootNavigator() {
                 setIsFirstLaunch(false);
             }
         });
+        
+        initDatabase(); 
+        
+        // Set up a listener for network status changes
+        const unsubscribe = NetInfo.addEventListener(state => {
+            if (state.isConnected) {
+                // When the app comes online, trigger the sync function
+                syncOfflineData();
+            }
+        });
+
+        // Clean up the listener when the app closes
+        return () => {
+            unsubscribe();
+        };
     }, []);
 
     if (loading || isFirstLaunch === null) {

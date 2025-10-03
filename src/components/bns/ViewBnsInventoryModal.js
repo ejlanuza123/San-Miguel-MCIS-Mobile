@@ -30,7 +30,7 @@ const Field = ({ label, value, children }) => (
 );
 
 export default function ViewBnsInventoryModal({ item, onClose }) {
-    if (!item) return null;
+    
 
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
