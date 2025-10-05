@@ -7,6 +7,7 @@ import { logActivity } from '../../services/activityLogger';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import QRCode from 'react-native-qrcode-svg';
+import db from '../../services/database';
 
 // --- ICONS & HELPER COMPONENTS ---
 const BackArrowIcon = () => <Svg width="24" height="24" viewBox="0 0 24 24" fill="none"><Path d="M15 18L9 12L15 6" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></Svg>;
@@ -177,6 +178,29 @@ export default function AddPatientModal({ onClose, onSave, mode = 'add', initial
             onSave();
             onClose();
         }
+        db.transaction(tx => {
+            // First, insert the new patient into the local database
+            tx.executeSql(
+                'INSERT INTO patients (patient_id, first_name, last_name, age, risk_level, medical_history) VALUES (?, ?, ?, ?, ?, ?)',
+                [newPatientId, formData.first_name, formData.last_name, formData.age, 'NORMAL', JSON.stringify(formData)],
+                (_, { insertId }) => {
+                    // Next, add this action to the sync queue
+                    tx.executeSql(
+                        'INSERT INTO sync_queue (action, table_name, payload) VALUES (?, ?, ?)',
+                        ['create', 'patients', JSON.stringify({ ...formData, patient_id: newPatientId })],
+                        () => {
+                            // On success, provide feedback and close
+                            addNotification('Patient saved locally. Will sync when online.', 'success');
+                            onSave(); // Refresh the list from local DB
+                            onClose();
+                        }
+                    );
+                },
+                (_, error) => {
+                    addNotification('Error saving patient locally: ' + error.message, 'error');
+                }
+            );
+        });
         setLoading(false);
     };
 

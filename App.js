@@ -1,16 +1,12 @@
 //App.js
 import "react-native-gesture-handler";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useState, useEffect } from "react";
-import {
-  NavigationContainer,
-  useNavigationContainerRef,
-} from "@react-navigation/native";
+import React, { useState, useEffect } from "react";
+import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NotificationProvider } from "./src/context/NotificationContext"; // <-- 1. IMPORT THE PROVIDER
-import { supabase } from "./src/services/supabase";
 
 // Import all screens and navigators
 import SplashScreen from "./src/screens/SplashScreen";
@@ -42,6 +38,9 @@ function RootNavigator() {
   const navigationRef = useNavigationContainerRef();
 
   useEffect(() => {
+    // FOR DEVELOPMENT: Uncomment the line below to always see the onboarding flow
+    // AsyncStorage.removeItem('hasCompletedOnboarding'); // Now it's safely commented out
+
     AsyncStorage.getItem("hasCompletedOnboarding").then((value) => {
       if (value === null) {
         setIsFirstLaunch(true);
@@ -49,22 +48,6 @@ function RootNavigator() {
         setIsFirstLaunch(false);
       }
     });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === "PASSWORD_RECOVERY") {
-          if (navigationRef.isReady()) {
-            // Navigate to the UpdatePassword screen within the Auth stack
-            navigationRef.navigate("Auth", { screen: "UpdatePassword" });
-          }
-        }
-      }
-    );
-
-    // Cleanup the listener on component unmount
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
   }, []);
 
   if (loading || isFirstLaunch === null) {

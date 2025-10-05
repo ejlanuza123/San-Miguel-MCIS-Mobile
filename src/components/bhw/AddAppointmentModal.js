@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import CalendarPickerModal from './CalendarPickerModal';
 import TimePickerModal from '../common/TimePickerModal';
+import db from '../../services/database';
 
 // --- ICONS ---
 const BackArrowIcon = () => (
@@ -89,7 +90,28 @@ export default function AddAppointmentModal({ onClose, onSave }) {
             onSave();
             onClose();
         }
-        setLoading(false);
+
+        db.transaction(tx => {
+            tx.executeSql(
+                'INSERT INTO appointments (patient_display_id, patient_name, reason, date, time, status) VALUES (?, ?, ?, ?, ?, ?)',
+                [...Object.values(appointmentRecord)],
+                (_, { insertId }) => {
+                    tx.executeSql(
+                        'INSERT INTO sync_queue (action, table_name, payload) VALUES (?, ?, ?)',
+                        ['create', 'appointments', JSON.stringify(appointmentRecord)],
+                        () => {
+                            addNotification('Appointment saved locally.', 'success');
+                            onSave();
+                            onClose();
+                        }
+                    );
+                },
+                (_, error) => {
+                    addNotification('Error saving appointment locally: ' + error.message, 'error');
+                    setLoading(false);
+                }
+            );
+        });
     };
 
     return (

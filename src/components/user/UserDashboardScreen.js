@@ -1,27 +1,40 @@
-// src/components/user/UserDashboardScreen.js
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabase';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNotification } from '../../context/NotificationContext';
 
-
-// --- Reusable Calendar Component (could be moved to its own file) ---
+// --- Calendar Component ---
 const Calendar = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
-    const changeMonth = (amount) => setCurrentDate(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + amount); return d; });
+
+    const changeMonth = (amount) => {
+        setCurrentDate(prev => {
+            const d = new Date(prev);
+            d.setMonth(d.getMonth() + amount);
+            return d;
+        });
+    };
+
     const generateCalendarGrid = () => {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         let days = [];
-        for (let i = 0; i < firstDay; i++) { days.push(<View key={`pad-${i}`} style={styles.calendarDay} />); }
+
+        // Padding before start of month
+        for (let i = 0; i < firstDay; i++) {
+            days.push(<View key={`pad-${i}`} style={styles.calendarDay} />);
+        }
+
+        // Actual days
         for (let i = 1; i <= daysInMonth; i++) {
             const isToday = new Date().toDateString() === new Date(year, month, i).toDateString();
             days.push(
-                <View key={i} style={styles.calendarDay}>
+                <View key={`day-${i}`} style={styles.calendarDay}>
                     <View style={isToday ? styles.todayCircle : {}}>
                         <Text style={isToday ? styles.todayText : styles.dayText}>{i}</Text>
                     </View>
@@ -34,12 +47,20 @@ const Calendar = () => {
     return (
         <View style={styles.calendarContainer}>
             <View style={styles.calendarHeader}>
-                <TouchableOpacity onPress={() => changeMonth(-1)}><Text style={styles.arrow}>&lt;</Text></TouchableOpacity>
-                <Text style={styles.calendarTitle}>{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</Text>
-                <TouchableOpacity onPress={() => changeMonth(1)}><Text style={styles.arrow}>&gt;</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => changeMonth(-1)}>
+                    <Text style={styles.arrow}>{'<'}</Text>
+                </TouchableOpacity>
+                <Text style={styles.calendarTitle}>
+                    {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                </Text>
+                <TouchableOpacity onPress={() => changeMonth(1)}>
+                    <Text style={styles.arrow}>{'>'}</Text>
+                </TouchableOpacity>
             </View>
             <View style={styles.calendarGrid}>
-                {['SUN','MON','TUE','WED','THU','FRI','SAT'].map(day => <Text key={day} style={styles.dayHeader}>{day}</Text>)}
+                {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(day => (
+                    <Text key={day} style={styles.dayHeader}>{day}</Text>
+                ))}
                 {generateCalendarGrid()}
             </View>
         </View>
@@ -47,10 +68,12 @@ const Calendar = () => {
 };
 
 export default function UserDashboardScreen() {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const navigation = useNavigation();
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
+    const { addNotification } = useNotification();
+    const [isFollowUpLoading, setIsFollowUpLoading] = useState(false);
 
     const fetchAppointments = useCallback(async () => {
         if (!user) return;
@@ -65,37 +88,49 @@ export default function UserDashboardScreen() {
             .order('time', { ascending: true })
             .limit(5);
 
-        if (error) console.error("Error fetching appointments:", error);
-        else setAppointments(data || []);
+        if (error) {
+            console.error("Error fetching appointments:", error);
+        } else {
+            setAppointments(data || []);
+        }
         setLoading(false);
     }, [user]);
 
     useFocusEffect(
-        useCallback(() => {
-            const fetchAppointments = async () => {
-                if (!user) {
-                    setLoading(false);
-                    return;
-                };
-                setLoading(true);
-                const today = new Date().toISOString().split('T')[0];
-                const { data, error } = await supabase
-                    .from('appointments')
-                    .select('id, date, time, reason, assigned_to')
-                    .eq('created_by', user.id)
-                    .gte('date', today)
-                    .order('date', { ascending: true })
-                    .order('time', { ascending: true })
-                    .limit(5);
+        React.useCallback(() => {
+            let isActive = true;
 
-                if (error) console.error("Error fetching appointments:", error);
-                else setAppointments(data || []);
+            const fetchAppointmentsData = async () => {
+            if (!user) return;
+            setLoading(true);
+            const today = new Date().toISOString().split('T')[0];
+            const { data, error } = await supabase
+                .from('appointments')
+                .select('id, date, time, reason, assigned_to')
+                .eq('created_by', user.id)
+                .gte('date', today)
+                .order('date', { ascending: true })
+                .order('time', { ascending: true })
+                .limit(5);
+
+            if (isActive) {
+                if (error) {
+                console.error("Error fetching appointments:", error);
+                } else {
+                setAppointments(data || []);
+                }
                 setLoading(false);
+            }
             };
 
-            fetchAppointments();
+            fetchAppointmentsData();
+
+            // cleanup
+            return () => {
+            isActive = false;
+            };
         }, [user])
-    );
+        );
 
     const formatTime = (timeStr) => {
         if (!timeStr) return '';
@@ -106,15 +141,45 @@ export default function UserDashboardScreen() {
         return `${formattedHour}:${minute} ${ampm}`;
     };
 
+    const handleFollowUp = async () => {
+        Alert.alert(
+            "Confirm Request",
+            "This will notify a health worker that you are requesting a follow-up visit. Continue?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Yes, Request",
+                    onPress: async () => {
+                        setIsFollowUpLoading(true);
+                        const { error } = await supabase.rpc('request_follow_up_and_notify_bhws', {
+                            user_id_param: user.id,
+                            user_name_param: profile?.full_name || "User"
+                        });
+                        if (error) {
+                            addNotification('Could not send request: ' + error.message, 'error');
+                        } else {
+                            addNotification('Follow-up request sent successfully!', 'success');
+                        }
+                        setIsFollowUpLoading(false);
+                    }
+                }
+            ]
+        );
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={['bottom']}>
-            <View style={styles.content}>
+            <ScrollView contentContainerStyle={styles.content}>
                 <Text style={styles.title}>Upcoming Appointment</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                    {loading ? <ActivityIndicator color="#c026d3" /> : (
+                    {loading ? (
+                        <ActivityIndicator color="#c026d3" />
+                    ) : (
                         appointments.length > 0 ? appointments.map(app => (
                             <View key={app.id} style={styles.card}>
-                                <Text style={styles.cardDay}>{new Date(app.date).toLocaleDateString('en-US', { weekday: 'long' })}</Text>
+                                <Text style={styles.cardDay}>
+                                    {new Date(app.date).toLocaleDateString('en-US', { weekday: 'long' })}
+                                </Text>
                                 <Text style={styles.cardTime}>{formatTime(app.time)}</Text>
                                 <Text style={styles.cardProvider}>{app.assigned_to || 'Pending Confirmation'}</Text>
                                 <Text style={styles.cardType}>{app.reason}</Text>
@@ -126,8 +191,18 @@ export default function UserDashboardScreen() {
                         )
                     )}
                 </ScrollView>
-                
+
                 <Calendar />
+
+                <TouchableOpacity 
+                    style={styles.followUpButton} 
+                    onPress={handleFollowUp}
+                    disabled={isFollowUpLoading}
+                >
+                    {isFollowUpLoading 
+                        ? <ActivityIndicator color="white" /> 
+                        : <Text style={styles.addButtonText}>Request Follow-up</Text>}
+                </TouchableOpacity>
 
                 <TouchableOpacity 
                     style={styles.addButton} 
@@ -135,12 +210,11 @@ export default function UserDashboardScreen() {
                 >
                     <Text style={styles.addButtonText}>+ Add New Appointment</Text>
                 </TouchableOpacity>
-            </View>
+            </ScrollView>
         </SafeAreaView>
     );
 }
 
-// NEW: Styles to match the mockup
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: 'white' },
     content: { padding: 20, paddingBottom: 100 },
@@ -153,10 +227,9 @@ const styles = StyleSheet.create({
     cardTime: { fontSize: 32, fontWeight: 'bold', marginVertical: 4, color: '#be185d' },
     cardProvider: { fontSize: 15, fontWeight: '500', color: '#1f2937' },
     cardType: { fontSize: 14, color: '#4b5563' },
-    
-    calendarContainer: { backgroundColor: '#fdf2f8', borderRadius: 15, padding: 15, borderWidth: 1, borderColor: '#fbcfe8', marginTop: 10 },
-    calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-    calendarTitle: { fontSize: 16, fontWeight: 'bold', color: '#9d174d' },
+    calendarContainer: { backgroundColor: '#fdf2f8', borderRadius: 15, padding: 0, borderWidth: 1, borderColor: '#fbcfe8', marginTop: 10 },
+    calendarHeader: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
+    calendarTitle: { fontSize: 16, fontWeight: 'bold', color: '#9d174d', marginHorizontal: 30 },
     arrow: { fontSize: 22, color: '#be185d', fontWeight: 'bold' },
     calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
     dayHeader: { width: `${100/7}%`, textAlign: 'center', color: '#6b7280', fontWeight: 'bold', fontSize: 12, paddingBottom: 10 },
@@ -164,7 +237,7 @@ const styles = StyleSheet.create({
     dayText: { fontSize: 14, color: '#4b5563' },
     todayCircle: { width: 30, height: 30, backgroundColor: '#db2777', borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
     todayText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
-    
-    addButton: { backgroundColor: '#10b981', padding: 15, borderRadius: 15, alignItems: 'center', marginTop: 30, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+    followUpButton: { backgroundColor: '#fb923c', padding: 15, borderRadius: 15, alignItems: 'center', marginTop: 15 },
+    addButton: { backgroundColor: '#10b981', padding: 15, borderRadius: 15, alignItems: 'center', marginTop: 15 },
     addButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 });

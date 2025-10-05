@@ -9,7 +9,7 @@
     "newArchEnabled": true,
     "scheme": "sm.mcis",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./src/assets/logo.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -31,6 +31,9 @@
       "eas": {
         "projectId": "616eb46e-ca17-4d5e-8a6d-6cb060f5a378"
       }
-    }
+    },
+    "plugins": [
+      "expo-sqlite"
+    ]
   }
 }
