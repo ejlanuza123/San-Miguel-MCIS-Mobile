@@ -27,13 +27,13 @@
     "web": {
       "favicon": "./src/assets/logo.jpg"
     },
-    "plugins": [
-      "expo-sqlite"
-    ],
     "extra": {
       "eas": {
-        "projectId": "7f5aebd6-557a-4cb6-acf1-b1a30d73a84e"
+        "projectId": "616eb46e-ca17-4d5e-8a6d-6cb060f5a378"
       }
-    }
+    },
+    "plugins": [
+      "expo-sqlite"
+    ]
   }
 }

@@ -6,7 +6,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { NotificationProvider } from "./src/context/NotificationContext";
+import { NotificationProvider } from "./src/context/NotificationContext"; // <-- 1. IMPORT THE PROVIDER
 
 // Import all screens and navigators
 import SplashScreen from "./src/screens/SplashScreen";
