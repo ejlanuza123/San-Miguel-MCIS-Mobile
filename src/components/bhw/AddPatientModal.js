@@ -7,7 +7,10 @@ import { logActivity } from '../../services/activityLogger';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import QRCode from 'react-native-qrcode-svg';
-import db from '../../services/database';
+import { getDatabase } from '../../services/database'; // 2. Import getDatabase
+import NetInfo from '@react-native-community/netinfo';
+import * as Crypto from 'expo-crypto';
+
 
 // --- ICONS & HELPER COMPONENTS ---
 const BackArrowIcon = () => <Svg width="24" height="24" viewBox="0 0 24 24" fill="none"><Path d="M15 18L9 12L15 6" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></Svg>;
@@ -100,34 +103,52 @@ const Step4 = ({ formData, handleChange }) => (
 export default function AddPatientModal({ onClose, onSave, mode = 'add', initialData = null }) {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({});
-    const [newPatientId, setNewPatientId] = useState('Loading...');
+    const [patientId, setPatientId] = useState(''); // Changed from newPatientId for clarity
     const [loading, setLoading] = useState(false);
     const { addNotification } = useNotification();
 
     useEffect(() => {
         if (mode === 'edit' && initialData) {
-            // EDIT MODE: Pre-fill the form with the patient's existing data
-            setFormData(initialData.medical_history || {});
-            setNewPatientId(initialData.patient_id);
-            // Also set top-level fields for consistency if they exist in medical_history
+            // EDIT MODE: Pre-fill form (no changes here)
+            setFormData(typeof initialData.medical_history === 'string' ? JSON.parse(initialData.medical_history) : initialData.medical_history || {});
+            setPatientId(initialData.patient_id);
             setFormData(prev => ({
                 ...prev,
-                last_name: initialData.last_name,
-                first_name: initialData.first_name,
-                middle_name: initialData.middle_name,
-                age: initialData.age?.toString(),
+                last_name: initialData.last_name, first_name: initialData.first_name,
+                middle_name: initialData.middle_name, age: initialData.age?.toString(),
                 contact_no: initialData.contact_no,
             }));
-
         } else {
-            // ADD MODE: Generate a new ID for a new patient
-            const generateNewId = async () => {
-                const { count } = await supabase.from('patients').select('*', { count: 'exact', head: true });
-                setNewPatientId(`P-${String((count || 0) + 1).padStart(3, '0')}`);
-            };
-            generateNewId();
-        }
-    }, [mode, initialData]);
+            const generateId = async () => {
+            setPatientId('Loading...'); // Show a loading state initially
+            
+            const netInfo = await NetInfo.fetch();
+
+            if (netInfo.isConnected) {
+                // --- ONLINE LOGIC ---
+                // Fetch the count from Supabase to create the next sequential ID
+                const { count, error } = await supabase
+                    .from('patients')
+                    .select('*', { count: 'exact', head: true });
+
+                if (error) {
+                    // If Supabase fails, fall back to an offline ID
+                    setPatientId(`TEMP-${Crypto.randomUUID()}`);
+                } else {
+                    const newId = `P-${String((count || 0) + 1).padStart(3, '0')}`;
+                    setPatientId(newId);
+                }
+            } else {
+                // --- OFFLINE LOGIC ---
+                // Generate a temporary unique ID
+                const uniqueId = `TEMP-${Crypto.randomUUID()}`;
+                setPatientId(uniqueId);
+            }
+        };
+
+        generateId();
+    }
+}, [mode, initialData]);
     
 
     const handleChange = (name, value) => setFormData(prev => ({ ...prev, [name]: value }));
@@ -138,70 +159,63 @@ export default function AddPatientModal({ onClose, onSave, mode = 'add', initial
             return;
         }
         setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
 
-        // Consolidate data for saving
         const patientRecord = {
-            patient_id: newPatientId,
+            patient_id: patientId,
             first_name: formData.first_name,
             last_name: formData.last_name,
-            middle_name: formData.middle_name,
             age: parseInt(formData.age, 10),
+            risk_level: 'NORMAL',
+            medical_history: formData, // The full form data is stored here
+            // Include other top-level fields for consistency
+            middle_name: formData.middle_name,
             contact_no: formData.contact_no,
-            risk_level: formData.risk_level || 'NORMAL',
-            medical_history: formData,
         };
 
-        let result;
-        if (mode === 'edit') {
-            // In EDIT mode, submit a request for an update
-            result = await supabase.from('requestions').insert([{
-                worker_id: user.id,
-                request_type: 'Update',
-                target_table: 'patients',
-                target_record_id: initialData.id,
-                request_data: patientRecord,
-                status: 'Pending'
-            }]);
-        } else {
-            // In ADD mode, insert a new patient record directly
-            result = await supabase.from('patients').insert([patientRecord]);
-        }
+        const netInfo = await NetInfo.fetch();
+        const db = getDatabase();
 
-        if (result.error) {
-            addNotification(`Error: ${result.error.message}`, 'error');
-        } else {
-            const successMsg = mode === 'edit' ? 'Update request submitted for approval.' : 'New patient added successfully.';
-            const logAction = mode === 'edit' ? 'Patient Update Request' : 'New Patient Added';
-            addNotification(successMsg, 'success');
-            await logActivity(logAction, `ID: ${newPatientId}`);
-            onSave();
-            onClose();
-        }
-        db.transaction(tx => {
-            // First, insert the new patient into the local database
-            tx.executeSql(
-                'INSERT INTO patients (patient_id, first_name, last_name, age, risk_level, medical_history) VALUES (?, ?, ?, ?, ?, ?)',
-                [newPatientId, formData.first_name, formData.last_name, formData.age, 'NORMAL', JSON.stringify(formData)],
-                (_, { insertId }) => {
-                    // Next, add this action to the sync queue
-                    tx.executeSql(
-                        'INSERT INTO sync_queue (action, table_name, payload) VALUES (?, ?, ?)',
-                        ['create', 'patients', JSON.stringify({ ...formData, patient_id: newPatientId })],
-                        () => {
-                            // On success, provide feedback and close
-                            addNotification('Patient saved locally. Will sync when online.', 'success');
-                            onSave(); // Refresh the list from local DB
-                            onClose();
-                        }
+        try {
+            if (netInfo.isConnected) {
+                // --- ONLINE LOGIC ---
+                console.log("Online: Saving patient directly to Supabase...");
+                const { error } = await supabase.from('patients').insert([patientRecord]).select().single();
+                if (error) throw error;
+                addNotification('New patient added successfully.', 'success');
+            } else {
+                // --- OFFLINE LOGIC ---
+                console.log("Offline: Saving patient locally...");
+                await db.withTransactionAsync(async () => {
+                    // 1. Insert the patient into the local database
+                    const statement = await db.prepareAsync(
+                        'INSERT INTO patients (patient_id, first_name, last_name, age, risk_level, medical_history) VALUES (?, ?, ?, ?, ?, ?);'
                     );
-                },
-                (_, error) => {
-                    addNotification('Error saving patient locally: ' + error.message, 'error');
-                }
-            );
-        });
-        setLoading(false);
+                    await statement.executeAsync([
+                        patientRecord.patient_id, patientRecord.first_name, patientRecord.last_name,
+                        patientRecord.age, patientRecord.risk_level, JSON.stringify(patientRecord.medical_history)
+                    ]);
+                    await statement.finalizeAsync();
+
+                    // 2. Add the action to the sync queue
+                    const syncStatement = await db.prepareAsync(
+                        'INSERT INTO sync_queue (action, table_name, payload) VALUES (?, ?, ?);'
+                    );
+                    await syncStatement.executeAsync(['create', 'patients', JSON.stringify(patientRecord)]);
+                    await syncStatement.finalizeAsync();
+                });
+                addNotification('Patient saved locally. Will sync when online.', 'success');
+            }
+            
+            await logActivity('New Patient Added', `ID: ${patientId}`);
+            onSave(); // This will trigger a re-fetch on the main screen
+            onClose();
+
+        } catch (error) {
+            console.error("Failed to save patient:", error);
+            addNotification(`Error: ${error.message}`, 'error');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -216,18 +230,22 @@ export default function AddPatientModal({ onClose, onSave, mode = 'add', initial
             <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
                 <View style={styles.profileSection}>
                     <View style={styles.avatarPlaceholder}>
-                        {/* This now shows a QR code if the ID is valid, otherwise it shows the placeholder */}
-                        {newPatientId && newPatientId.startsWith('P-') ? (
+                        {/*
+                        This now shows a QR code if the ID is valid.
+                        CHANGED from newPatientId to patientId
+                        */}
+                        {patientId ? (
                             <QRCode
-                                value={newPatientId}
-                                size={100}
+                                value={patientId}
+                                size={80} // Adjusted size for the placeholder
                                 backgroundColor="#f3f4f6"
                             />
                         ) : (
                             <ProfileIcon />
                         )}
                     </View>
-                    <Text style={styles.patientId}>Patient ID: {newPatientId}</Text>
+                    {/* CHANGED from newPatientId to patientId */}
+                    <Text style={styles.patientId}>Patient ID: {patientId}</Text>
                 </View>
                 {step === 1 && <Step1 formData={formData} handleChange={handleChange} />}
                 {step === 2 && <Step2 formData={formData} handleChange={handleChange} />}

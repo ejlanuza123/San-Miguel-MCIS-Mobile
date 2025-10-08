@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   profileInfo: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 50, height: 50, borderRadius: 25, marginRight: 15 },
   welcomeText: { fontSize: 14, color: '#6b7280' },
-  userName: { fontSize: 18, fontWeight: 'bold' },
+  userName: { fontSize: 15, fontWeight: 'bold' },
   headerIcons: { flexDirection: 'row', gap: 15 },
   searchContainer: {
     flexDirection: 'row',

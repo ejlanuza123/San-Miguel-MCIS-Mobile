@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// src\components\bhw\PatientManagementScreen.js
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Image, Modal, ActivityIndicator } from 'react-native';
 import { supabase } from '../../services/supabase';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,7 +9,9 @@ import { useHeader } from '../../context/HeaderContext';
 import AddPatientModal from './AddPatientModal';
 import ViewPatientModal from './ViewPatientModal';
 import { useNotification } from '../../context/NotificationContext';
-import db from '../../services/database';
+import NetInfo from '@react-native-community/netinfo';
+import { getDatabase } from '../../services/database';
+
 // --- ICONS ---
 const SearchIcon = () => <Svg width={20} height={20} viewBox="0 0 24 24"><Path fill="#9e9e9e" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></Svg>;
 const FilterIcon = () => <Svg width={24} height={24} viewBox="0 0 24 24"><Path fill="#333" d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></Svg>;
@@ -93,6 +96,21 @@ export default function PatientManagementScreen({ route, navigation }) {
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [modalMode, setModalMode] = useState('add'); // Default to 'add'
+    const listRef = useRef(null);
+
+    const handlePageChange = (page) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+            listRef.current?.scrollToOffset({ offset: 0, animated: true });
+        }
+        };
+
+    const paginatedPatients = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return allPatients.slice(startIndex, endIndex);
+        }, [allPatients, currentPage]);
+
 
     const handleViewPatient = (patient) => {
         setSelectedPatient(patient);
@@ -114,36 +132,70 @@ export default function PatientManagementScreen({ route, navigation }) {
 
     const fetchPatients = useCallback(async () => {
         setLoading(true);
-        const from = (currentPage - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
-        let query = supabase.from('patients').select('*', { count: 'exact' });
-        if (activeFilter !== 'All') { query = query.eq('risk_level', activeFilter); }
-        if (searchTerm) { query = query.ilike('last_name', `%${searchTerm}%`); }
-        const { data, error, count } = await query.order('last_name', { ascending: true }).range(from, to);
+        const db = getDatabase();
 
-        if (error) { addNotification("Error fetching patients: " + error.message, 'error'); } 
-        else {
-            setAllPatients(data || []);
-            setTotalRecords(count || 0);
+        try {
+            // STEP 1 — Immediately show cached data
+            const localData = await db.getAllAsync('SELECT * FROM patients ORDER BY last_name ASC;');
+            setAllPatients(localData);
+            setTotalRecords(localData.length);
+            setLoading(false); // show UI now
+
+            // STEP 2 — Check if online, then sync in background
+            const netInfo = await NetInfo.fetch();
+            if (netInfo.isConnected) {
+            console.log("Online: Fetching from Supabase...");
+            const { data: supabaseData, error: supabaseError } = await supabase
+                .from('patients')
+                .select('*')
+                .order('last_name', { ascending: true });
+
+            if (!supabaseError && supabaseData) {
+                await db.withTransactionAsync(async () => {
+                const stmt = await db.prepareAsync(
+                    'INSERT OR REPLACE INTO patients (id, patient_id, first_name, last_name, age, risk_level, medical_history) VALUES (?, ?, ?, ?, ?, ?, ?);'
+                );
+                await Promise.all(
+                    supabaseData.map((patient) => {
+                        const historyString =
+                        typeof patient.medical_history === "string"
+                            ? patient.medical_history
+                            : JSON.stringify(patient.medical_history);
+
+                        const id = Number(patient.id) || null; // Cast to integer
+                        const age = Number(patient.age) || 0; // Default to 0 if null
+
+                        return stmt.executeAsync([
+                        id,
+                        patient.patient_id,
+                        patient.first_name,
+                        patient.last_name,
+                        age,
+                        patient.risk_level,
+                        historyString,
+                        ]);
+                    })
+                    );
+                await stmt.finalizeAsync();
+                });
+
+                // STEP 3 — Update UI after sync (optional)
+                const updatedLocal = await db.getAllAsync('SELECT * FROM patients ORDER BY last_name ASC;');
+                setAllPatients(updatedLocal);
+                setTotalRecords(updatedLocal.length);
+            }
+            }
+        } catch (e) {
+            console.error("Error loading patients:", e);
+            addNotification('An error occurred while loading data.', 'error');
         }
-        db.transaction(tx => {
-            // Query the local 'patients' table
-            tx.executeSql(
-                'SELECT * FROM patients ORDER BY last_name ASC;',
-                [],
-                (_, { rows: { _array } }) => {
-                    setAllPatients(_array);
-                    setTotalRecords(_array.length); // Update total for pagination
-                },
-                (_, error) => console.error("Error fetching local patients:", error)
-            );
-        });
-        setLoading(false);
-    }, [currentPage, activeFilter, searchTerm, addNotification]);
+    }, [addNotification]);
 
     useEffect(() => {
         fetchPatients();
-    }, [fetchPatients]);
+    }, [fetchPatients, searchTerm, activeFilter, currentPage]);
+
+
     
     // --- THIS IS THE CRITICAL LOGIC FOR THE QR SCAN ---
     useEffect(() => {
@@ -151,24 +203,41 @@ export default function PatientManagementScreen({ route, navigation }) {
         if (scannedId) {
             const findAndEditPatient = async () => {
                 setLoading(true);
-                const { data: patient, error } = await supabase.from('patients').select('*').eq('patient_id', scannedId).single();
-                setLoading(false);
+                const netInfo = await NetInfo.fetch();
 
-                if (error) {
+                let patient = null;
+                let error = null;
+
+                if (netInfo.isConnected) {
+                    // ONLINE: Fetch from Supabase (your existing logic)
+                    const { data, error: supabaseError } = await supabase.from('patients').select('*').eq('patient_id', scannedId).single();
+                    patient = data;
+                    error = supabaseError;
+                } else {
+                    // OFFLINE: Fetch from the local SQLite database
+                    const db = getDatabase();
+                    try {
+                        const result = await db.getFirstAsync('SELECT * FROM patients WHERE patient_id = ?;', [scannedId]);
+                        patient = result;
+                    } catch (dbError) {
+                        error = dbError;
+                    }
+                }
+
+                setLoading(false);
+                if (error || !patient) {
                     addNotification(`Patient ID "${scannedId}" not found.`, 'error');
-                } else if (patient) {
-                    // 1. Set the patient data to be edited
+                } else {
                     setSelectedPatient(patient);
-                    // 2. CRITICAL: Set the modal's mode to 'edit'
                     setModalMode('edit');
-                    // 3. Open the modal
                     setIsAddModalOpen(true);
                 }
             };
+
             findAndEditPatient();
-            navigation.setParams({ scannedPatientId: null }); 
+            navigation.setParams({ scannedPatientId: null });
         }
-    }, [route.params?.scannedPatientId, navigation, addNotification]);
+    }, [route.params?.scannedPatientId]);
 
     const totalPages = Math.ceil(totalRecords / itemsPerPage);
 
@@ -199,15 +268,13 @@ export default function PatientManagementScreen({ route, navigation }) {
                         <ActivityIndicator style={{ marginTop: 20 }} size="large" color="#3b82f6" />
                     ) : (
                         <FlatList
-                            data={allPatients}
-                            keyExtractor={(item) => item.id.toString()}
-                            renderItem={({ item }) => (
-                                <PatientRow 
-                                    item={item} 
-                                    onPress={() => handleViewPatient(item)} 
-                                />
-                            )}
-                            ListEmptyComponent={<Text style={styles.emptyText}>No patients found.</Text>}
+                        ref={listRef}
+                        data={paginatedPatients}
+                        keyExtractor={(item) => item.id.toString()}
+                        renderItem={({ item }) => (
+                            <PatientRow item={item} onPress={() => handleViewPatient(item)} />
+                        )}
+                        ListEmptyComponent={<Text style={styles.emptyText}>No patients found.</Text>}
                         />
                     )}
                 </View>

@@ -19,7 +19,7 @@ export const initDatabase = async () => {
     // Initialize tables
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS patients (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        id INTEGER PRIMARY KEY NOT NULL, 
         patient_id TEXT UNIQUE, 
         first_name TEXT, 
         last_name TEXT, 

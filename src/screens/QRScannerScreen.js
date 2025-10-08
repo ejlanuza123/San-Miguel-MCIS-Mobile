@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Button, Vibration } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 // --- ICONS ---
 const BackArrowIcon = () => (
@@ -24,7 +24,7 @@ const FlashIcon = ({ active }) => (
   </Svg>
 );
 
-export default function QRScannerScreen() {
+export default function QRScannerScreen({route}) {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [flashMode, setFlashMode] = useState('off'); // "off" | "on" | "auto"
@@ -48,20 +48,33 @@ export default function QRScannerScreen() {
   }, []);
 
   const handleBarCodeScanned = ({ data }) => {
-        if (!scanned) {
-            setScanned(true);
-            Vibration.vibrate();
-            
-            // This logic determines where to navigate back to
-            const returnScreen = route.params?.returnScreen;
-            let destination = 'PatientManagement'; // Default to BHW screen
-
-            if (returnScreen === 'BnsDashboard' || returnScreen === 'ChildHealthRecords') {
-                destination = 'ChildHealthRecords';
-            }
-            
-            navigation.navigate(destination, { scannedPatientId: data });
+        if (scanned) {
+            return;
         }
+        setScanned(true);
+        Vibration.vibrate();
+
+        // 1. Determine the destination TAB and SCREEN names
+        const returnScreen = route.params?.returnScreen;
+        let tabName = 'Patient'; // This is the name of the Tab in your WorkerTabs
+        let screenName = 'PatientManagement'; // This is the screen inside the BhwStack
+
+        // If the return screen was a BNS screen, change the destination
+        if (returnScreen === 'BnsDashboard' || returnScreen === 'ChildHealthRecords') {
+            screenName = 'ChildHealthRecords';
+        }
+
+        // 2. Navigate to the parent tab, and pass the target screen as a parameter
+        // This is the correct way to navigate to a nested screen from a modal.
+        navigation.navigate('Main', {
+            screen: tabName, // Go to the 'Patient' tab
+            params: {
+                screen: screenName, // THEN go to the 'PatientManagement' screen...
+                params: {
+                    scannedPatientId: data // ...and pass the scanned ID to it.
+                }
+            }
+        });
     };
 
   const toggleFlash = () => {
@@ -89,7 +102,7 @@ export default function QRScannerScreen() {
       <CameraView
         onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-        flash={flashMode}
+        enableTorch={flashMode === 'on'}  // ✅ Correct way
         style={StyleSheet.absoluteFillObject}
       />
       <SafeAreaView style={styles.overlay}>
