@@ -34,19 +34,47 @@ export const syncOfflineData = async () => {
         try {
             const payload = JSON.parse(item.payload);
             let error = null;
+            let syncResultData = null; // To hold the returned data from Supabase
 
-            if (item.action === 'create') {
-                const { error: insertError } = await supabase.from(item.table_name).insert([payload]);
+            if (item.action === 'create' && item.table_name === 'patients') {
+                // --- THIS IS THE NEW LOGIC FOR CREATING PATIENTS ---
+                console.log(`Syncing new patient with temporary ID: ${payload.patient_id}`);
+                const { data, error: rpcError } = await supabase.rpc('create_patient_with_sequential_id', { patient_data: payload });
+                
+                if (data && data.length > 0) {
+                    syncResultData = data[0]; // The RPC returns an array
+                }
+                error = rpcError;
+
+            } else if (item.action === 'create') {
+                // This handles other tables like appointments
+                const { data, error: insertError } = await supabase.from(item.table_name).insert([payload]).select();
+                syncResultData = data ? data[0] : null;
                 error = insertError;
-            }
-            // Add 'update' and 'delete' logic here if needed
 
-            // 3. If the Supabase action was successful, delete it from the local queue
+            } else if (item.action === 'update') {
+                // --- THIS IS THE NEW LOGIC FOR UPDATING ---
+                // The payload must contain the 'id' of the record to update
+                const { id, ...updateData } = payload; 
+                if (!id) {
+                    throw new Error('Update payload is missing an ID.');
+                }
+                const { error: updateError } = await supabase.from(item.table_name).update(updateData).eq('id', id);
+                error = updateError;
+            }
+
             if (!error) {
+                // --- UPDATE LOCAL DB AFTER SYNC ---
+                if (item.table_name === 'patients' && payload.patient_id?.startsWith('TEMP-')) {
+                    // Update local patient ID
+                    await db.runAsync('UPDATE patients SET patient_id = ? WHERE patient_id = ?;', [syncResultData.patient_id, payload.patient_id]);
+                } else if (item.table_name === 'child_records' && payload.child_id?.startsWith('TEMP-')) {
+                    // Update local child ID
+                    await db.runAsync('UPDATE child_records SET child_id = ? WHERE child_id = ?;', [syncResultData.child_id, payload.child_id]);
+                }
+                
                 await deleteFromQueue(item.id);
-                console.log(`Synced and deleted item ${item.id} from table ${item.table_name}`);
             } else {
-                // If it fails, log the error but leave it in the queue to try again later
                 console.error(`Failed to sync item ${item.id}:`, error.message);
             }
         } catch (e) {

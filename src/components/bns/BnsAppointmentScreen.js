@@ -7,6 +7,9 @@ import { useHeader } from '../../context/HeaderContext';
 import { useNotification } from '../../context/NotificationContext';
 import AddBnsAppointmentModal from './AddBnsAppointmentModal';
 import ViewBnsAppointmentModal from './ViewBnsAppointmentModal';
+import { getDatabase } from '../../services/database';
+import NetInfo from '@react-native-community/netinfo';
+
 
 const StatusBadge = ({ status }) => {
     const statusInfo = {
@@ -104,35 +107,66 @@ export default function BnsAppointmentScreen() {
 
     const fetchAppointments = useCallback(async () => {
         setLoading(true);
-        const from = (currentPage - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
+        const db = getDatabase();
 
-        let query = supabase
-            .from('appointments')
-            .select('*', { count: 'exact' })
-            .like('patient_display_id', 'C-%');
+        try {
+            const netInfo = await NetInfo.fetch();
+            if (netInfo.isConnected) {
+                console.log("Online: Fetching BNS appointments and caching...");
+                const { data: supabaseData, error } = await supabase
+                    .from('appointments')
+                    .select('*')
+                    .like('patient_display_id', 'C-%')
+                    .order('date', { ascending: false });
 
-        if (activeFilter !== 'All') query = query.eq('status', activeFilter);
-        if (searchTerm) query = query.ilike('patient_name', `%${searchTerm}%`);
+                if (error) {
+                    addNotification('Could not fetch latest BNS appointments.', 'warning');
+                } else if (supabaseData) {
+                    await db.withTransactionAsync(async () => {
+                        await db.execAsync('DELETE FROM appointments WHERE patient_display_id LIKE "C-%";');
+                        const stmt = await db.prepareAsync(
+                            'INSERT OR REPLACE INTO appointments (id, patient_display_id, patient_name, reason, date, time, status) VALUES (?, ?, ?, ?, ?, ?, ?);'
+                        );
+                        await Promise.all(supabaseData.map(app => 
+                            stmt.executeAsync([
+                                null, // ← SQLite will auto-generate integer ID
+                                app.patient_display_id,
+                                app.patient_name,
+                                app.reason,
+                                app.date,
+                                app.time,
+                                app.status
+                            ])
+                        ));
+                        await stmt.finalizeAsync();
+                    });
+                }
+            }
 
-        const { data, error, count } = await query
-            .order('date', { ascending: false })
-            .range(from, to);
+            const localData = await db.getAllAsync('SELECT * FROM appointments WHERE patient_display_id LIKE "C-%" ORDER BY date DESC;');
+            setAppointments(localData);
+            setTotalRecords(localData.length);
 
-        if (error) {
-            addNotification('Error fetching appointments', 'error');
-        } else {
-            setAppointments(data || []);
-            setTotalRecords(count || 0);
+        } catch (e) {
+            console.error("Error loading BNS appointments:", e);
+            addNotification('An error occurred loading appointment data.', 'error');
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
-    }, [currentPage, activeFilter, searchTerm, addNotification]);
+    }, [addNotification]);
 
+    // Add this useEffect to trigger the fetch
     useEffect(() => {
         fetchAppointments();
-    }, [fetchAppointments]);
+    }, [fetchAppointments, activeFilter, searchTerm])
 
     const totalPages = Math.ceil(totalRecords / itemsPerPage);
+
+    // Slice the data for pagination
+    const paginatedAppointments = appointments.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
 
     return (
         <>
@@ -164,11 +198,14 @@ export default function BnsAppointmentScreen() {
                         <ActivityIndicator style={{ marginTop: 20 }} size="large" color="#3b82f6" />
                     ) : (
                         <FlatList
-                            data={appointments}
-                            renderItem={({item}) => <AppointmentRow item={item} onPress={() => handleViewAppointment(item)} />}
+                            data={paginatedAppointments}
+                            renderItem={({ item }) => (
+                                <AppointmentRow item={item} onPress={() => handleViewAppointment(item)} />
+                            )}
                             keyExtractor={(item) => item.id.toString()}
                             ListEmptyComponent={<Text style={styles.emptyText}>No appointments found.</Text>}
                         />
+
                     )}
                 </View>
 

@@ -5,6 +5,8 @@ import { supabase } from '../../services/supabase';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeader } from '../../context/HeaderContext';
 import { useNotification } from '../../context/NotificationContext'; // <-- FIXED: Added missing import
+import { getDatabase } from '../../services/database';
+import NetInfo from '@react-native-community/netinfo';
 
 // Import all your modals
 import AddAppointmentModal from './AddAppointmentModal'; // <-- FIXED: Added missing import
@@ -81,40 +83,59 @@ export default function BhwAppointmentScreen() {
 
     const fetchAppointments = useCallback(async () => {
         setLoading(true);
-        const from = (currentPage - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
+        const db = getDatabase();
 
-        // Start building the query
-        let query = supabase
-            .from('appointments')
-            // This is the key fix: It now JOINS with the patients table and fetches all patient data (*)
-            .select('*, patients(*)', { count: 'exact' }) 
-            // This filter ensures we ONLY get appointments for PATIENTS (P-ID)
-            .like('patient_display_id', 'P-%'); 
+        try {
+            const netInfo = await NetInfo.fetch();
+            if (netInfo.isConnected) {
+                console.log("Online: Fetching BHW appointments and caching...");
+                const { data: supabaseData, error } = await supabase
+                    .from('appointments')
+                    .select('*, patients(*)')
+                    .like('patient_display_id', 'P-%')
+                    .order('date', { ascending: false });
 
-        if (activeFilter !== 'All') {
-            query = query.eq('status', activeFilter);
+                if (error) {
+                    addNotification('Could not fetch latest appointments.', 'warning');
+                } else if (supabaseData) {
+                    await db.withTransactionAsync(async () => {
+                        // Clear old appointments to avoid stale data
+                        await db.execAsync('DELETE FROM appointments WHERE patient_display_id LIKE "P-%";');
+                        
+                        const stmt = await db.prepareAsync(
+                        'INSERT INTO appointments (patient_display_id, patient_name, reason, date, time, status) VALUES (?, ?, ?, ?, ?, ?);'
+                        );
+                        await Promise.all(supabaseData.map(app => 
+                        stmt.executeAsync([
+                            app.patient_display_id,
+                            app.patient_name,
+                            app.reason,
+                            app.date,
+                            app.time,
+                            app.status
+                        ])
+                        ));
+                        await stmt.finalizeAsync();
+                    });
+                }
+            }
+
+            // Always read from the local DB to populate the UI
+            const localData = await db.getAllAsync('SELECT * FROM appointments WHERE patient_display_id LIKE "P-%" ORDER BY date DESC;');
+            setAllAppointments(localData);
+            setTotalRecords(localData.length);
+
+        } catch (e) {
+            console.error("Error loading BHW appointments:", e);
+            addNotification('An error occurred loading appointment data.', 'error');
+        } finally {
+            setLoading(false);
         }
-        if (searchTerm) {
-            query = query.ilike('patient_name', `%${searchTerm}%`);
-        }
-        
-        query = query.order('date', { ascending: false }).order('time', { ascending: false }).range(from, to);
-
-        const { data, error, count } = await query;
-
-        if (error) {
-            addNotification('Error fetching appointments: ' + error.message, 'error');
-        } else {
-            setAllAppointments(data || []);
-            setTotalRecords(count || 0);
-        }
-        setLoading(false);
-    }, [currentPage, activeFilter, searchTerm, addNotification]);
+    }, [addNotification]);
 
     useEffect(() => {
         fetchAppointments();
-    }, [fetchAppointments]);
+    }, [fetchAppointments, activeFilter, searchTerm]);
 
     const handleViewAppointment = (item) => {
         setSelectedAppointment(item);
@@ -133,6 +154,9 @@ export default function BhwAppointmentScreen() {
     );
     
     const totalPages = Math.ceil(totalRecords / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedAppointments = allAppointments.slice(startIndex, endIndex);
 
     return (
         <>
@@ -169,10 +193,10 @@ export default function BhwAppointmentScreen() {
                         <ActivityIndicator style={{ marginTop: 20 }} size="large" color="#3b82f6" />
                     ) : (
                         <FlatList
-                            data={allAppointments}
-                            renderItem={renderAppointment}
-                            keyExtractor={(item) => item.id.toString()}
-                            ListEmptyComponent={<Text style={styles.emptyText}>No appointments found.</Text>}
+                        data={paginatedAppointments}
+                        renderItem={renderAppointment}
+                        keyExtractor={(item) => item.id.toString()}
+                        ListEmptyComponent={<Text style={styles.emptyText}>No appointments found.</Text>}
                         />
                     )}
                 </View>

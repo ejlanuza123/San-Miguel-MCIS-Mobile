@@ -54,28 +54,61 @@ export default function AddBnsAppointmentModal({ onClose, onSave }) {
             addNotification('Please fill all required fields.', 'error');
             return;
         }
-
         setLoading(true);
+
         const { data: { user } } = await supabase.auth.getUser();
-        const { error } = await supabase.from('appointments').insert([{
+        const appointmentRecord = {
             patient_display_id: formData.patient_id,
             patient_name: formData.patient_name,
             reason: formData.reason,
             date: formData.date,
             time: formData.time,
+            notes: formData.notes || '',
             status: 'Scheduled',
-            created_by: user?.id
-        }]);
+            created_by: user?.id,
+        };
 
-        if (error) {
-            addNotification(`Error: ${error.message}`, 'error');
-        } else {
+        const netInfo = await NetInfo.fetch();
+        const db = getDatabase();
+
+        try {
+            if (netInfo.isConnected) {
+                // --- ONLINE LOGIC ---
+                const { error } = await supabase.from('appointments').insert([appointmentRecord]);
+                if (error) throw error;
+                addNotification('Appointment scheduled successfully.', 'success');
+
+            } else {
+                // --- OFFLINE LOGIC ---
+                await db.withTransactionAsync(async () => {
+                    const statement = await db.prepareAsync(
+                        'INSERT INTO appointments (patient_display_id, patient_name, reason, date, time, status) VALUES (?, ?, ?, ?, ?, ?);'
+                    );
+                    await statement.executeAsync([
+                        appointmentRecord.patient_display_id, appointmentRecord.patient_name, appointmentRecord.reason,
+                        appointmentRecord.date, appointmentRecord.time, appointmentRecord.status
+                    ]);
+                    await statement.finalizeAsync();
+
+                    const syncStatement = await db.prepareAsync(
+                        'INSERT INTO sync_queue (action, table_name, payload) VALUES (?, ?, ?);'
+                    );
+                    await syncStatement.executeAsync(['create', 'appointments', JSON.stringify(appointmentRecord)]);
+                    await syncStatement.finalizeAsync();
+                });
+                addNotification('Appointment saved locally. Will sync when online.', 'success');
+            }
+
             await logActivity('New BNS Appointment', `For ${formData.patient_name}`);
-            addNotification('Appointment scheduled successfully.', 'success');
             onSave();
             onClose();
+
+        } catch (error) {
+            console.error("Failed to save BNS appointment:", error);
+            addNotification(`Error: ${error.message}`, 'error');
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const isFormValid = formData.patient_id && formData.reason && formData.date && formData.time;

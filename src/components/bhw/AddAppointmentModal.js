@@ -14,6 +14,9 @@ import Svg, { Path } from 'react-native-svg';
 import CalendarPickerModal from './CalendarPickerModal';
 import TimePickerModal from '../common/TimePickerModal';
 import db from '../../services/database';
+import * as Crypto from 'expo-crypto';
+import { getDatabase } from '../../services/database';
+import NetInfo from '@react-native-community/netinfo';
 
 // --- ICONS ---
 const BackArrowIcon = () => (
@@ -36,6 +39,7 @@ export default function AddAppointmentModal({ onClose, onSave }) {
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const { addNotification } = useNotification();
     const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
+    const [newPatientId, setNewPatientId] = useState('');
 
     useEffect(() => {
         const fetchAllPatients = async () => {
@@ -68,10 +72,10 @@ export default function AddAppointmentModal({ onClose, onSave }) {
             addNotification('Please fill all required fields.', 'error');
             return;
         }
-
         setLoading(true);
+
         const { data: { user } } = await supabase.auth.getUser();
-        const { error } = await supabase.from('appointments').insert([{
+        const appointmentRecord = {
             patient_display_id: formData.patient_id,
             patient_name: formData.patient_name,
             reason: formData.reason,
@@ -79,39 +83,52 @@ export default function AddAppointmentModal({ onClose, onSave }) {
             time: formData.time,
             notes: formData.notes,
             status: 'Scheduled',
-            created_by: user?.id
-        }]);
+            created_by: user?.id,
+        };
 
-        if (error) {
-            addNotification(`Error: ${error.message}`, 'error');
-        } else {
+        const netInfo = await NetInfo.fetch();
+        const db = getDatabase();
+
+        try {
+            if (netInfo.isConnected) {
+                // --- ONLINE LOGIC ---
+                console.log("Online: Saving appointment directly to Supabase...");
+                const { error } = await supabase.from('appointments').insert([appointmentRecord]);
+                if (error) throw error;
+                addNotification('Appointment scheduled successfully.', 'success');
+
+            } else {
+                // --- OFFLINE LOGIC ---
+                console.log("Offline: Saving appointment locally...");
+                await db.withTransactionAsync(async () => {
+                    const statement = await db.prepareAsync(
+                        'INSERT INTO appointments (patient_display_id, patient_name, reason, date, time, status) VALUES (?, ?, ?, ?, ?, ?);'
+                    );
+                    await statement.executeAsync([
+                        appointmentRecord.patient_display_id, appointmentRecord.patient_name, appointmentRecord.reason,
+                        appointmentRecord.date, appointmentRecord.time, appointmentRecord.status
+                    ]);
+                    await statement.finalizeAsync();
+
+                    const syncStatement = await db.prepareAsync(
+                        'INSERT INTO sync_queue (action, table_name, payload) VALUES (?, ?, ?);'
+                    );
+                    await syncStatement.executeAsync(['create', 'appointments', JSON.stringify(appointmentRecord)]);
+                    await syncStatement.finalizeAsync();
+                });
+                addNotification('Appointment saved locally. Will sync when online.', 'success');
+            }
+
             await logActivity('New Appointment Scheduled', `For ${formData.patient_name} on ${formData.date}`);
-            addNotification('Appointment scheduled successfully.', 'success');
             onSave();
             onClose();
-        }
 
-        db.transaction(tx => {
-            tx.executeSql(
-                'INSERT INTO appointments (patient_display_id, patient_name, reason, date, time, status) VALUES (?, ?, ?, ?, ?, ?)',
-                [...Object.values(appointmentRecord)],
-                (_, { insertId }) => {
-                    tx.executeSql(
-                        'INSERT INTO sync_queue (action, table_name, payload) VALUES (?, ?, ?)',
-                        ['create', 'appointments', JSON.stringify(appointmentRecord)],
-                        () => {
-                            addNotification('Appointment saved locally.', 'success');
-                            onSave();
-                            onClose();
-                        }
-                    );
-                },
-                (_, error) => {
-                    addNotification('Error saving appointment locally: ' + error.message, 'error');
-                    setLoading(false);
-                }
-            );
-        });
+        } catch (error) {
+            console.error("Failed to save appointment:", error);
+            addNotification(`Error: ${error.message}`, 'error');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (

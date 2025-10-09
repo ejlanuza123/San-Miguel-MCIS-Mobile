@@ -7,6 +7,8 @@ import { useHeader } from '../../context/HeaderContext';
 import { useNotification } from '../../context/NotificationContext';
 import AddChildModal from './AddChildModal';
 import ViewChildModal from './ViewChildModal';
+import { getDatabase } from '../../services/database';
+import NetInfo from '@react-native-community/netinfo';
 
 // --- HELPER COMPONENTS ---
 const StatusBadge = ({ status }) => {
@@ -103,25 +105,56 @@ export default function ChildHealthRecordsScreen({ route, navigation }) {
 
     const fetchChildRecords = useCallback(async () => {
         setLoading(true);
-        const from = (currentPage - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
+        const db = getDatabase();
 
-        let query = supabase.from('child_records').select('*', { count: 'exact' });
-        if (activeFilter !== 'All') query = query.eq('nutrition_status', activeFilter);
-        if (searchTerm) query = query.ilike('last_name', `%${searchTerm}%`);
-        
-        const { data, error, count } = await query.order('last_name', { ascending: true }).range(from, to);
-        if (error) addNotification(`Error fetching records: ${error.message}`, 'error');
-        else {
-            setChildRecords(data || []);
-            setTotalRecords(count || 0);
+        try {
+            const netInfo = await NetInfo.fetch();
+            if (netInfo.isConnected) {
+                console.log("Online: Fetching child records and caching...");
+                const { data: supabaseData, error } = await supabase.from('child_records').select('*').order('last_name');
+
+                if (error) {
+                    addNotification('Could not fetch latest child records.', 'warning');
+                } else if (supabaseData) {
+                    await db.withTransactionAsync(async () => {
+                        const stmt = await db.prepareAsync(
+                            'INSERT OR REPLACE INTO child_records (id, child_id, first_name, last_name, dob, sex, mother_name, nutrition_status, health_details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);'
+                        );
+                        await Promise.all(supabaseData.map(child => {
+                            const details = typeof child.health_details === 'string' ? child.health_details : JSON.stringify(child.health_details);
+                            return stmt.executeAsync([
+                                null, // Let SQLite auto-generate integer ID
+                                child.child_id,
+                                child.first_name,
+                                child.last_name,
+                                child.dob,
+                                child.sex,
+                                child.mother_name,
+                                child.nutrition_status,
+                                details
+                                ])
+                        }));
+                        await stmt.finalizeAsync();
+                    });
+                }
+            }
+
+            // Always read from local DB for UI
+            const localData = await db.getAllAsync('SELECT * FROM child_records ORDER BY last_name ASC;');
+            setChildRecords(localData);
+            setTotalRecords(localData.length);
+
+        } catch (e) {
+            console.error("Error loading child records:", e);
+            addNotification('An error occurred loading child data.', 'error');
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
-    }, [currentPage, activeFilter, searchTerm, addNotification]);
+    }, [addNotification]);
 
     useEffect(() => {
         fetchChildRecords();
-    }, [fetchChildRecords]);
+    }, [fetchChildRecords, activeFilter, searchTerm]);
     
     useEffect(() => {
         const scannedId = route.params?.scannedPatientId;
@@ -141,6 +174,9 @@ export default function ChildHealthRecordsScreen({ route, navigation }) {
     }, [route.params?.scannedPatientId]);
     
     const totalPages = Math.ceil(totalRecords / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedRecords = childRecords.slice(startIndex, endIndex);
 
     return (
         <>
@@ -162,11 +198,12 @@ export default function ChildHealthRecordsScreen({ route, navigation }) {
                     </View>
                     {loading ? <ActivityIndicator size="large" color="#3b82f6" /> : (
                         <FlatList
-                            data={childRecords}
-                            renderItem={({item}) => <ChildRow item={item} onPress={() => handleViewChild(item)} />}
-                            keyExtractor={(item) => item.id.toString()}
-                            ListEmptyComponent={<Text style={styles.emptyText}>No child records found.</Text>}
+                        data={paginatedRecords}
+                        renderItem={({ item }) => <ChildRow item={item} onPress={() => handleViewChild(item)} />}
+                        keyExtractor={(item) => item.id.toString()}
+                        ListEmptyComponent={<Text style={styles.emptyText}>No child records found.</Text>}
                         />
+
                     )}
                 </View>
                 <View style={styles.controlsContainer}>

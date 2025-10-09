@@ -13,14 +13,15 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../services/supabase";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
 
 // --- ICONS ---
 const BackArrowIcon = () => (
-  <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <Svg width="26" height="26" viewBox="0 0 24 24" fill="none">
     <Path
       d="M15 18L9 12L15 6"
-      stroke="#1f2937"
+      stroke="#fff"
       strokeWidth="2.5"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -68,6 +69,7 @@ const LanguageIcon = () => (
     <Path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z" />
   </Svg>
 );
+
 const SettingsItem = ({ icon, label, onPress }) => (
   <TouchableOpacity style={styles.item} onPress={onPress}>
     <View style={styles.itemIcon}>{icon}</View>
@@ -93,18 +95,23 @@ export default function SettingsScreen() {
       .eq("id", profile.id)
       .select()
       .single();
-    if (!error) setProfile(data); // Update global profile state
+    if (!error) setProfile(data);
   };
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+      <LinearGradient
+        colors={["#2563eb", "#1e3a8a"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <BackArrowIcon />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
-        <View style={{ width: 24 }} />
-      </View>
+        <View style={{ width: 26 }} />
+      </LinearGradient>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.profileSummary}>
@@ -112,9 +119,7 @@ export default function SettingsScreen() {
             source={{
               uri:
                 profile?.avatar_url ||
-                `https://ui-avatars.com/api/?name=${
-                  profile?.first_name || "U"
-                }`,
+                `https://ui-avatars.com/api/?name=${profile?.first_name || "U"}`,
             }}
             style={styles.avatar}
           />
@@ -123,7 +128,6 @@ export default function SettingsScreen() {
           }`}</Text>
         </View>
 
-        {/* --- THIS SECTION IS UPDATED --- */}
         <SettingsItem
           icon={<ProfileIcon />}
           label="Profile"
@@ -139,10 +143,11 @@ export default function SettingsScreen() {
           <Switch
             value={notificationsEnabled}
             onValueChange={handleToggleNotifications}
-            trackColor={{ false: "#767577", true: "#81b0ff" }}
+            trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
             thumbColor={notificationsEnabled ? "#3b82f6" : "#f4f3f4"}
           />
         </View>
+
         <SettingsItem icon={<HelpIcon />} label="Help" onPress={() => {}} />
         <SettingsItem
           icon={<PrivacyIcon />}
@@ -162,8 +167,15 @@ export default function SettingsScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
-          <Text style={styles.logoutButtonText}>Log Out</Text>
+        <TouchableOpacity onPress={signOut} activeOpacity={0.8}>
+          <LinearGradient
+            colors={["#ef4444", "#b91c1c"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.logoutButton}
+          >
+            <Text style={styles.logoutButtonText}>Log Out</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -171,25 +183,54 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f0f4f8" },
+  container: { flex: 1, backgroundColor: "#f9fafb" },
+
+  // HEADER
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    padding: 15,
-    backgroundColor: "white",
+    justifyContent: "space-between",
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
   },
-  headerTitle: { fontSize: 18, fontWeight: "bold" },
+  backButton: {
+    backgroundColor: "rgba(255,255,255,0.15)",
+    padding: 6,
+    borderRadius: 10,
+  },
+  headerTitle: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+
+  // CONTENT
   scrollContent: { padding: 20 },
-  profileSummary: { alignItems: "center", marginBottom: 30 },
+  profileSummary: { alignItems: "center", marginBottom: 25 },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: "#3b82f6",
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 4,
+    borderColor: "#fff",
+    backgroundColor: "#e5e7eb",
+    elevation: 5,
   },
-  profileName: { fontSize: 22, fontWeight: "bold", marginTop: 10 },
+  profileName: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1f2937",
+    marginTop: 12,
+  },
+
+  // SECTION
   sectionHeader: {
     fontSize: 14,
     fontWeight: "600",
@@ -197,31 +238,51 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginTop: 30,
     marginBottom: 10,
+    paddingLeft: 2,
   },
+
+  // ITEMS
   item: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "white",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
   },
   itemIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#e0f2fe",
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#eff6ff",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 15,
   },
-  itemLabel: { flex: 1, fontSize: 16, fontWeight: "500" },
-  footer: { padding: 20 },
-  logoutButton: { backgroundColor: "#fee2e2", padding: 15, borderRadius: 10 },
+  itemLabel: { flex: 1, fontSize: 16, fontWeight: "500", color: "#111827" },
+
+  // FOOTER
+  footer: {
+    padding: 20,
+    backgroundColor: "#f9fafb",
+  },
+  logoutButton: {
+    paddingVertical: 15,
+    alignItems: "center",
+    borderRadius: 12,
+    elevation: 3,
+    shadowColor: "#ef4444",
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
   logoutButtonText: {
-    color: "#ef4444",
-    fontWeight: "bold",
-    textAlign: "center",
+    color: "#fff",
     fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
 });

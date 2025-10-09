@@ -7,6 +7,9 @@ import { logActivity } from '../../services/activityLogger';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import QRCode from 'react-native-qrcode-svg';
+import * as Crypto from 'expo-crypto';
+import { getDatabase } from '../../services/database';
+import NetInfo from '@react-native-community/netinfo';
 
 // --- ICONS & HELPER COMPONENTS ---
 const BackArrowIcon = () => <Svg width="24" height="24" viewBox="0 0 24 24" fill="none"><Path d="M15 18L9 12L15 6" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></Svg>;
@@ -72,33 +75,112 @@ const Step2 = ({ formData, handleChange }) => (
 export default function AddChildModal({ onClose, onSave, mode = 'add', initialData = null }) {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({});
-    const [childId, setChildId] = useState('Loading...');
+    const [childId, setChildId] = useState(''); 
     const [loading, setLoading] = useState(false);
     const { addNotification } = useNotification();
 
     useEffect(() => {
         if (mode === 'edit' && initialData) {
-            setFormData(initialData.health_details || {});
+            // Edit mode logic remains the same
             setChildId(initialData.child_id);
+            setFormData(typeof initialData.health_details === 'string' 
+                ? JSON.parse(initialData.health_details) 
+                : initialData.health_details || {}
+            );
         } else {
-            const generateNewId = async () => {
-                const { count } = await supabase.from('child_records').select('*', { count: 'exact', head: true });
-                setChildId(`C-${String((count || 0) + 1).padStart(3, '0')}`);
+            // Add mode logic now checks the network
+            const generateId = async () => {
+                setChildId('Loading...');
+                const netInfo = await NetInfo.fetch();
+
+                if (netInfo.isConnected) {
+                    // ONLINE: Get the count from Supabase for a sequential ID
+                    const { count, error } = await supabase
+                        .from('child_records')
+                        .select('*', { count: 'exact', head: true });
+
+                    if (error) {
+                        // Fallback to UUID if Supabase fails
+                        setChildId(`TEMP-C-${Crypto.randomUUID()}`);
+                    } else {
+                        const newId = `C-${String((count || 0) + 1).padStart(3, '0')}`;
+                        setChildId(newId);
+                    }
+                } else {
+                    // OFFLINE: Generate a temporary unique ID
+                    const uniqueId = `TEMP-C-${Crypto.randomUUID()}`;
+                    setChildId(uniqueId);
+                }
             };
-            generateNewId();
+            generateId();
         }
     }, [mode, initialData]);
 
     const handleChange = (name, value) => setFormData(prev => ({ ...prev, [name]: value }));
 
     const handleSave = async () => {
+        if (!formData.child_name || !formData.dob) {
+            addNotification("Please fill in the child's name and date of birth.", 'error');
+            return;
+        }
         setLoading(true);
-        // ... (Logic to save or submit update request for child record)
-        addNotification(mode === 'edit' ? 'Update request sent!' : 'Child added!', 'success');
-        await logActivity(mode === 'edit' ? 'Update Child Request' : 'Add Child', `ID: ${childId}`);
-        onSave();
-        onClose();
-        setLoading(false);
+
+        const [firstName, ...lastNameParts] = formData.child_name.split(' ');
+        const childRecord = {
+            child_id: childId,
+            first_name: firstName,
+            last_name: lastNameParts.join(' ') || '',
+            dob: formData.dob,
+            sex: formData.sex,
+            mother_name: formData.mother_name,
+            nutrition_status: 'H', // Default status
+            health_details: formData,
+        };
+
+        const netInfo = await NetInfo.fetch();
+        const db = getDatabase();
+
+        try {
+            if (netInfo.isConnected) {
+                // --- ONLINE LOGIC ---
+                console.log("Online: Saving child record directly to Supabase...");
+                const { error } = await supabase.from('child_records').insert([childRecord]);
+                if (error) throw error;
+                addNotification('New child record added successfully.', 'success');
+
+            } else {
+                // --- OFFLINE LOGIC ---
+                console.log("Offline: Saving child record locally...");
+                await db.withTransactionAsync(async () => {
+                    const statement = await db.prepareAsync(
+                        'INSERT INTO child_records (child_id, first_name, last_name, dob, sex, mother_name, nutrition_status, health_details) VALUES (?, ?, ?, ?, ?, ?, ?, ?);'
+                    );
+                    await statement.executeAsync([
+                        childRecord.child_id, childRecord.first_name, childRecord.last_name, childRecord.dob,
+                        childRecord.sex, childRecord.mother_name, childRecord.nutrition_status,
+                        JSON.stringify(childRecord.health_details)
+                    ]);
+                    await statement.finalizeAsync();
+
+                    const syncStatement = await db.prepareAsync(
+                        'INSERT INTO sync_queue (action, table_name, payload) VALUES (?, ?, ?);'
+                    );
+                    await syncStatement.executeAsync(['create', 'child_records', JSON.stringify(childRecord)]);
+                    await syncStatement.finalizeAsync();
+                });
+                addNotification('Child record saved locally. Will sync when online.', 'success');
+            }
+            
+            await logActivity('Add Child', `ID: ${childId}`);
+            onSave();
+            onClose();
+
+        } catch (error) {
+            console.error("Failed to save child record:", error);
+            addNotification(`Error: ${error.message}`, 'error');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
