@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -8,14 +8,46 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
-} from 'react-native';
-import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabase';
-import { useNotification } from '../context/NotificationContext';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
-import Svg, { Path } from 'react-native-svg';
-import { LinearGradient } from 'expo-linear-gradient';
+} from "react-native";
+import { useAuth } from "../context/AuthContext";
+import { supabase } from "../services/supabase";
+import { useNotification } from "../context/NotificationContext";
+import { SafeAreaView } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
+import Svg, { Path } from "react-native-svg";
+import { LinearGradient } from "expo-linear-gradient";
+
+const getRoleColors = (role) => {
+  if (role === "BNS") {
+    return {
+      primary: "#10b981", // Emerald Green
+      dark: "#059669", // Dark Emerald
+      headerGradient: ["#059669", "#10b981"],
+      editIconBg: "#059669",
+      avatarBorder: "#059669",
+      saveButtonGradient: ["#10b981", "#059669"],
+    };
+  }
+  if (role === "USER/MOTHER/GUARDIAN") {
+    return {
+      primary: "#db2777", // Rose Pink
+      dark: "#831843", // Dark Rose
+      headerGradient: ["#831843", "#db2777"],
+      editIconBg: "#831843",
+      avatarBorder: "#831843",
+      saveButtonGradient: ["#db2777", "#831843"],
+    };
+  }
+  // Default BHW (Blue)
+  return {
+    primary: "#2563eb",
+    dark: "#1e3a8a",
+    headerGradient: ["#1e3a8a", "#3b82f6"],
+    editIconBg: "#2563eb",
+    avatarBorder: "#2563eb",
+    saveButtonGradient: ["#2563eb", "#1d4ed8"],
+  };
+};
 
 const BackArrowIcon = () => (
   <Svg width="26" height="26" viewBox="0 0 24 24" fill="none">
@@ -51,14 +83,16 @@ const InputField = ({ label, value, onChangeText, ...props }) => (
 export default function ProfileEditScreen({ navigation }) {
   const { profile, setProfile, user } = useAuth();
   const { addNotification } = useNotification();
+  const colors = getRoleColors(profile?.role || "BHW");
   const [loading, setLoading] = useState(false);
   const [avatar, setAvatar] = useState(profile?.avatar_url || null);
   const [formData, setFormData] = useState({
-    first_name: profile?.first_name || '',
-    last_name: profile?.last_name || '',
-    contact_no: profile?.contact_no || '',
-    assigned_purok: profile?.assigned_purok || '',
+    first_name: profile?.first_name || "",
+    last_name: profile?.last_name || "",
+    contact_no: profile?.contact_no || "",
+    assigned_purok: profile?.assigned_purok || "",
   });
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleImagePick = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -74,56 +108,60 @@ export default function ProfileEditScreen({ navigation }) {
   };
 
   const handleSave = async () => {
-    setLoading(true);
+    setIsSaving(true);
     let avatar_url = profile?.avatar_url;
 
     if (avatar && avatar !== profile?.avatar_url) {
-      const fileExt = avatar.split('.').pop();
+      // ... (Image Upload Logic) ...
+      const fileExt = avatar.split(".").pop();
       const fileName = `${user.id}.${fileExt}`;
       const formDataUpload = new FormData();
-      formDataUpload.append('files', {
+      formDataUpload.append("files", {
         uri: avatar,
         name: fileName,
         type: `image/${fileExt}`,
       });
 
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('avatars')
+        .from("avatars")
         .upload(fileName, formDataUpload, { upsert: true });
 
       if (uploadError) {
-        addNotification('Error uploading image: ' + uploadError.message, 'error');
-        setLoading(false);
+        addNotification(
+          "Error uploading image: " + uploadError.message,
+          "error"
+        );
+        setIsSaving(false);
         return;
       }
 
       const { data: urlData } = supabase.storage
-        .from('avatars')
+        .from("avatars")
         .getPublicUrl(uploadData.path);
       avatar_url = urlData.publicUrl;
     }
 
     const { data: updatedProfile, error } = await supabase
-      .from('profiles')
+      .from("profiles")
       .update({ ...formData, avatar_url })
-      .eq('id', profile.id)
+      .eq("id", profile.id)
       .select()
       .single();
 
     if (error) {
-      addNotification('Error updating profile: ' + error.message, 'error');
+      addNotification("Error updating profile: " + error.message, "error");
     } else {
       setProfile(updatedProfile);
-      addNotification('Profile updated successfully!', 'success');
+      addNotification("Profile updated successfully!", "success");
       navigation.goBack();
     }
-    setLoading(false);
+    setIsSaving(false);
   };
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <LinearGradient colors={['#1e3a8a', '#3b82f6']} style={styles.header}>
+      <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <BackArrowIcon />
         </TouchableOpacity>
@@ -138,11 +176,24 @@ export default function ProfileEditScreen({ navigation }) {
             source={{
               uri:
                 avatar ||
-                `https://ui-avatars.com/api/?name=${profile?.first_name || 'U'}`,
+                `https://ui-avatars.com/api/?name=${
+                  profile?.first_name || "U"
+                }`,
             }}
-            style={styles.avatar}
+            style={[
+              styles.avatar,
+              // CORRECTED: Apply dynamic colors for border and shadow
+              {
+                borderColor: colors.avatarBorder,
+                shadowColor: colors.avatarBorder,
+              },
+            ]}
           />
-          <TouchableOpacity style={styles.editIcon} onPress={handleImagePick}>
+          <TouchableOpacity
+            // CORRECTED: Apply dynamic background color for the edit icon
+            style={[styles.editIcon, { backgroundColor: colors.editIconBg }]}
+            onPress={handleImagePick}
+          >
             <EditIcon />
           </TouchableOpacity>
         </View>
@@ -158,9 +209,7 @@ export default function ProfileEditScreen({ navigation }) {
         <InputField
           label="Last Name"
           value={formData.last_name}
-          onChangeText={(text) =>
-            setFormData({ ...formData, last_name: text })
-          }
+          onChangeText={(text) => setFormData({ ...formData, last_name: text })}
         />
         <InputField
           label="Contact Number"
@@ -184,13 +233,14 @@ export default function ProfileEditScreen({ navigation }) {
         <TouchableOpacity
           style={styles.saveButton}
           onPress={handleSave}
-          disabled={loading}
+          disabled={isSaving}
         >
           <LinearGradient
-            colors={['#2563eb', '#1d4ed8']}
+            // CORRECTED: Apply dynamic colors for the save button gradient
+            colors={colors.saveButtonGradient}
             style={styles.gradientButton}
           >
-            {loading ? (
+            {isSaving ? ( // Use isSaving
               <ActivityIndicator color="white" />
             ) : (
               <Text style={styles.saveButtonText}>Save Changes</Text>
@@ -203,68 +253,66 @@ export default function ProfileEditScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+  container: { flex: 1, backgroundColor: "#f9fafb" },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: 15,
     elevation: 4,
   },
-  headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
+  headerTitle: { color: "white", fontSize: 20, fontWeight: "bold" },
 
   content: { padding: 25 },
-  avatarContainer: { alignItems: 'center', marginBottom: 35 },
+  avatarContainer: { alignItems: "center", marginBottom: 35 },
   avatar: {
     width: 130,
     height: 130,
     borderRadius: 65,
     borderWidth: 3,
-    borderColor: '#2563eb',
-    shadowColor: '#2563eb',
     shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 8,
   },
   editIcon: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 10,
     right: 130 / 3.5,
-    backgroundColor: '#2563eb',
     padding: 8,
     borderRadius: 25,
     borderWidth: 2,
-    borderColor: 'white',
+    borderColor: "white",
     elevation: 5,
   },
 
   inputContainer: { marginBottom: 18 },
   label: {
     fontSize: 14,
-    color: '#6b7280',
+    color: "#6b7280",
     marginBottom: 6,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: "#d1d5db",
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
+    backgroundColor: "#fff",
+    shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
 
   footer: { padding: 25 },
-  saveButton: { borderRadius: 12, overflow: 'hidden' },
+  saveButton: { borderRadius: 12, overflow: "hidden" },
   gradientButton: {
     paddingVertical: 15,
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 12,
     elevation: 3,
   },
-  saveButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  saveButtonText: { color: "white", fontWeight: "bold", fontSize: 16 },
 });
