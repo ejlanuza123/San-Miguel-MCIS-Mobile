@@ -178,6 +178,7 @@ const LoginScreen = ({ route, navigation }) => {
                       ? "Email Address"
                       : "User ID No."
                   }
+                  placeholderTextColor="#9ca3af"
                   value={loginIdentifier}
                   onChangeText={setLoginIdentifier}
                   autoCapitalize="none"
@@ -189,6 +190,7 @@ const LoginScreen = ({ route, navigation }) => {
                 <TextInput
                   style={styles.input}
                   placeholder="Password"
+                  placeholderTextColor="#9ca3af"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -290,6 +292,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingLeft: 10,
     fontSize: 16,
+    color: "#111827"
   },
   button: {
     backgroundColor: "#2563eb",
