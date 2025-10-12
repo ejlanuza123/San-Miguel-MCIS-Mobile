@@ -73,6 +73,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
             <TextInput
               style={styles.input}
               placeholder="Email Address"
+              placeholderTextColor="#9ca3af"
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
