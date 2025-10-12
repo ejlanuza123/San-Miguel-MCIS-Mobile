@@ -121,24 +121,24 @@ const RegisterScreen = ({ navigation }) => {
                     <Text style={styles.title}>Sign Up</Text>
                     <View style={styles.inputContainer}>
                         <UserIcon />
-                        <TextInput style={styles.input} placeholder="Patient ID No." value={patientId} onChangeText={setPatientId} autoCapitalize="none" />
+                        <TextInput style={styles.input} placeholder="Patient ID No." placeholderTextColor="#9ca3af" value={patientId} onChangeText={setPatientId} autoCapitalize="none" />
                     </View>
                     <VerificationIndicator />
                     <View style={styles.inputContainer}>
                         <UserIcon />
-                        <TextInput style={[styles.input, styles.readOnlyInput]} placeholder="Full Name (auto-filled)" value={fullName} editable={false} />
+                        <TextInput style={[styles.input, styles.readOnlyInput]} placeholder="Full Name (auto-filled)" placeholderTextColor="#9ca3af" value={fullName} editable={false} />
                     </View>
                     <View style={styles.inputContainer}>
                         <EmailIcon />
-                        <TextInput style={styles.input} placeholder="Email Address" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+                        <TextInput style={styles.input} placeholder="Email Address" placeholderTextColor="#9ca3af" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
                     </View>
                     <View style={styles.inputContainer}>
                         <LockIcon />
-                        <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
+                        <TextInput style={styles.input} placeholder="Password" placeholderTextColor="#9ca3af" value={password} onChangeText={setPassword} secureTextEntry />
                     </View>
                     <View style={styles.inputContainer}>
                         <LockIcon />
-                        <TextInput style={styles.input} placeholder="Confirm Password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
+                        <TextInput style={styles.input} placeholder="Confirm Password" placeholderTextColor="#9ca3af" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
                     </View>
                     <TouchableOpacity style={[styles.button, !isVerified && styles.buttonDisabled]} onPress={handleSignUp} disabled={loading || !isVerified}>
                         <Text style={styles.buttonText}>{loading ? 'Signing Up...' : 'Sign Up'}</Text>
