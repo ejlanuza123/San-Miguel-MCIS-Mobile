@@ -191,6 +191,7 @@ export default function FixedHeader() {
             <SearchIcon />
             <TextInput
               placeholder={placeholder}
+              placeholderTextColor="#9ca3af"
               style={styles.searchInput}
               value={searchTerm}
               onChangeText={setSearchTerm}

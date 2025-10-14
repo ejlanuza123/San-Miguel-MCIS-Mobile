@@ -20,32 +20,32 @@ import { LinearGradient } from "expo-linear-gradient";
 const getRoleColors = (role) => {
   if (role === "BNS") {
     return {
-      primary: "#10b981", // Emerald Green
-      dark: "#059669", // Dark Emerald
-      headerGradient: ["#059669", "#10b981"],
-      editIconBg: "#059669",
-      avatarBorder: "#059669",
-      saveButtonGradient: ["#10b981", "#059669"],
+      primary: "#6ee7b7", // Very Light Emerald Green
+      dark: "#34d399", // Very Light Dark Emerald
+      headerGradient: ["#34d399", "#6ee7b7"],
+      editIconBg: "#34d399",
+      avatarBorder: "#34d399",
+      saveButtonGradient: ["#6ee7b7", "#34d399"],
     };
   }
   if (role === "USER/MOTHER/GUARDIAN") {
     return {
-      primary: "#db2777", // Rose Pink
-      dark: "#831843", // Dark Rose
-      headerGradient: ["#831843", "#db2777"],
-      editIconBg: "#831843",
-      avatarBorder: "#831843",
-      saveButtonGradient: ["#db2777", "#831843"],
+      primary: "#f9a8d4", // Very Light Rose Pink
+      dark: "#f472b6", // Very Light Dark Rose
+      headerGradient: ["#f472b6", "#f9a8d4"],
+      editIconBg: "#f472b6",
+      avatarBorder: "#f472b6",
+      saveButtonGradient: ["#f9a8d4", "#f472b6"],
     };
   }
-  // Default BHW (Blue)
+  // Default BHW (Very Light Blue)
   return {
-    primary: "#2563eb",
-    dark: "#1e3a8a",
-    headerGradient: ["#1e3a8a", "#3b82f6"],
-    editIconBg: "#2563eb",
-    avatarBorder: "#2563eb",
-    saveButtonGradient: ["#2563eb", "#1d4ed8"],
+    primary: "#93c5fd", // Very Light Blue
+    dark: "#60a5fa", // Very Light Dark Blue
+    headerGradient: ["#60a5fa", "#93c5fd"],
+    editIconBg: "#60a5fa",
+    avatarBorder: "#60a5fa",
+    saveButtonGradient: ["#93c5fd", "#60a5fa"],
   };
 };
 

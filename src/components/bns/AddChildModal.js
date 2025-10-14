@@ -33,16 +33,16 @@ const InputField = ({ label, value, onChangeText, ...props }) => (
 const Step1 = ({ formData, handleChange }) => (
     <>
         <Text style={styles.sectionTitle}>Child & Family Information</Text>
-        <InputField label="Name of BHS" value={formData.bhs_name || 'San Miguel'} onChangeText={t => handleChange('bhs_name', t)} />
-        <InputField label="Name of Child" value={formData.child_name || ''} onChangeText={t => handleChange('child_name', t)} />
+        <InputField label="Name of BHS"  placeholderTextColor="#9ca3af" value={formData.bhs_name || 'San Miguel'} onChangeText={t => handleChange('bhs_name', t)} />
+        <InputField label="Name of Child" placeholder="Enter the name of child"  placeholderTextColor="#9ca3af" value={formData.child_name || ''} onChangeText={t => handleChange('child_name', t)} />
         <View style={styles.row}>
-            <InputField containerStyle={{flex:1}} label="Date of Birth" placeholder="YYYY-MM-DD" value={formData.dob || ''} onChangeText={t => handleChange('dob', t)} />
-            <InputField containerStyle={{flex:1}} label="Sex" placeholder="Male/Female" value={formData.sex || ''} onChangeText={t => handleChange('sex', t)} />
+            <InputField containerStyle={{flex:1}} label="Date of Birth"  placeholderTextColor="#9ca3af" placeholder="YYYY-MM-DD" value={formData.dob || ''} onChangeText={t => handleChange('dob', t)} />
+            <InputField containerStyle={{flex:1}} label="Sex"  placeholderTextColor="#9ca3af" placeholder="Male/Female" value={formData.sex || ''} onChangeText={t => handleChange('sex', t)} />
         </View>
-        <InputField label="Place of Birth" value={formData.place_of_birth || ''} onChangeText={t => handleChange('place_of_birth', t)} />
-        <InputField label="Name of Mother" value={formData.mother_name || ''} onChangeText={t => handleChange('mother_name', t)} />
-        <InputField label="Name of Father" value={formData.father_name || ''} onChangeText={t => handleChange('father_name', t)} />
-        <InputField label="Name of Guardian" value={formData.guardian_name || ''} onChangeText={t => handleChange('guardian_name', t)} />
+        <InputField label="Place of Birth" placeholder="Enter place of birth" placeholderTextColor="#9ca3af" value={formData.place_of_birth || ''} onChangeText={t => handleChange('place_of_birth', t)} />
+        <InputField label="Name of Mother" placeholder="Enter the name of mother" placeholderTextColor="#9ca3af" value={formData.mother_name || ''} onChangeText={t => handleChange('mother_name', t)} />
+        <InputField label="Name of Father" placeholder="Enter the name of father" placeholderTextColor="#9ca3af" value={formData.father_name || ''} onChangeText={t => handleChange('father_name', t)} />
+        <InputField label="Name of Guardian" placeholder="Enter the name of guardian" placeholderTextColor="#9ca3af" value={formData.guardian_name || ''} onChangeText={t => handleChange('guardian_name', t)} />
     </>
 );
 
@@ -50,16 +50,16 @@ const Step2 = ({ formData, handleChange }) => (
     <>
         <Text style={styles.sectionTitle}>Measurements & ID Numbers</Text>
         <View style={styles.row}>
-            <InputField containerStyle={{flex:1}} label="Weight (kg)" value={formData.weight_kg || ''} onChangeText={t => handleChange('weight_kg', t)} keyboardType="numeric" />
-            <InputField containerStyle={{flex:1}} label="Height (cm)" value={formData.height_cm || ''} onChangeText={t => handleChange('height_cm', t)} keyboardType="numeric" />
+            <InputField containerStyle={{flex:1}} label="Weight (kg)" placeholderTextColor="#9ca3af" value={formData.weight_kg || ''} onChangeText={t => handleChange('weight_kg', t)} keyboardType="numeric" />
+            <InputField containerStyle={{flex:1}} label="Height (cm)"  placeholderTextColor="#9ca3af" value={formData.height_cm || ''} onChangeText={t => handleChange('height_cm', t)} keyboardType="numeric" />
         </View>
-        <InputField label="NHTS No." value={formData.nhts_no || ''} onChangeText={t => handleChange('nhts_no', t)} />
-        <InputField label="PhilHealth No." value={formData.philhealth_no || ''} onChangeText={t => handleChange('philhealth_no', t)} />
+        <InputField label="NHTS No." placeholderTextColor="#9ca3af" value={formData.nhts_no || ''} onChangeText={t => handleChange('nhts_no', t)} />
+        <InputField label="PhilHealth No." placeholderTextColor="#9ca3af" value={formData.philhealth_no || ''} onChangeText={t => handleChange('philhealth_no', t)} />
 
         <Text style={styles.sectionTitle}>Mother's Immunization Status (Td)</Text>
         <View style={styles.grid}>
             {['Td1', 'Td2', 'Td3', 'Td4', 'Td5'].map(v => (
-                <InputField containerStyle={styles.gridInput} key={v} label={v} placeholder="YYYY-MM-DD" value={formData[`mother_immunization_${v}`] || ''} onChangeText={t => handleChange(`mother_immunization_${v}`, t)} />
+                <InputField containerStyle={styles.gridInput} key={v} label={v} placeholderTextColor="#9ca3af" placeholder="YYYY-MM-DD" value={formData[`mother_immunization_${v}`] || ''} onChangeText={t => handleChange(`mother_immunization_${v}`, t)} />
             ))}
         </View>
 
@@ -68,7 +68,7 @@ const Step2 = ({ formData, handleChange }) => (
             {['1st Month', '2nd Month', '3rd Month', '4th Month', '5th Month', '6th Month'].map(month => <Checkbox key={month} label={month} value={!!formData[`breastfeeding_${month}`]} onValueChange={v => handleChange(`breastfeeding_${month}`, v)} />)}
         </View>
 
-        <InputField label="Vitamin A (Date Given)" placeholder="YYYY-MM-DD" value={formData.vitamin_a_date || ''} onChangeText={t => handleChange('vitamin_a_date', t)} />
+        <InputField label="Vitamin A (Date Given)"  placeholderTextColor="#9ca3af" placeholder="YYYY-MM-DD" value={formData.vitamin_a_date || ''} onChangeText={t => handleChange('vitamin_a_date', t)} />
     </>
 );
 
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     subSectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#374151', marginTop: 10, marginBottom: 10 },
     inputContainer: { marginBottom: 15 },
     label: { fontSize: 14, color: '#6b7280', marginBottom: 5 },
-    input: { backgroundColor: '#f9fafb', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db', fontSize: 16, marginBottom: 10 },
+    input: { backgroundColor: '#f9fafb', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db', fontSize: 16, marginBottom: 10, color: '#111827' },
     row: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
     inputRow: { flex: 1 },
     grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },

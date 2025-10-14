@@ -28,27 +28,27 @@ const Checkbox = ({ label, value, onValueChange }) => (
 const Step1 = ({ formData, handleChange }) => (
     <>
         <Text style={styles.sectionTitle}>Personal & Contact Information</Text>
-        <TextInput style={styles.input} placeholder="Last Name" value={formData.last_name} onChangeText={t => handleChange('last_name', t)} />
-        <TextInput style={styles.input} placeholder="First Name" value={formData.first_name} onChangeText={t => handleChange('first_name', t)} />
-        <TextInput style={styles.input} placeholder="Middle Name" value={formData.middle_name} onChangeText={t => handleChange('middle_name', t)} />
-        <TextInput style={styles.input} placeholder="Date of Birth (YYYY-MM-DD)" value={formData.dob} onChangeText={t => handleChange('dob', t)} />
-        <TextInput style={styles.input} placeholder="Age" value={formData.age} onChangeText={t => handleChange('age', t)} keyboardType="numeric" />
-        <TextInput style={styles.input} placeholder="Blood Type" value={formData.blood_type} onChangeText={t => handleChange('blood_type', t)} />
-        <TextInput style={styles.input} placeholder="Contact No." value={formData.contact_no} onChangeText={t => handleChange('contact_no', t)} keyboardType="phone-pad" />
-        <TextInput style={styles.input} placeholder="Address (Purok, Street)" value={formData.address} onChangeText={t => handleChange('address', t)} />
+        <TextInput style={styles.input} placeholder="Last Name" placeholderTextColor="#9ca3af" value={formData.last_name} onChangeText={t => handleChange('last_name', t)} />
+        <TextInput style={styles.input} placeholder="First Name" placeholderTextColor="#9ca3af" value={formData.first_name} onChangeText={t => handleChange('first_name', t)} />
+        <TextInput style={styles.input} placeholder="Middle Name" placeholderTextColor="#9ca3af" value={formData.middle_name} onChangeText={t => handleChange('middle_name', t)} />
+        <TextInput style={styles.input} placeholder="Date of Birth (YYYY-MM-DD)" placeholderTextColor="#9ca3af" value={formData.dob} onChangeText={t => handleChange('dob', t)} />
+        <TextInput style={styles.input} placeholder="Age" placeholderTextColor="#9ca3af" value={formData.age} onChangeText={t => handleChange('age', t)} keyboardType="numeric" />
+        <TextInput style={styles.input} placeholder="Blood Type" placeholderTextColor="#9ca3af" value={formData.blood_type} onChangeText={t => handleChange('blood_type', t)} />
+        <TextInput style={styles.input} placeholder="Contact No." placeholderTextColor="#9ca3af" value={formData.contact_no} onChangeText={t => handleChange('contact_no', t)} keyboardType="phone-pad" />
+        <TextInput style={styles.input} placeholder="Address (Purok, Street)" placeholderTextColor="#9ca3af" value={formData.address} onChangeText={t => handleChange('address', t)} />
 
         <Text style={styles.sectionTitle}>ID Numbers</Text>
-        <TextInput style={styles.input} placeholder="NHTS No." value={formData.nhts_no} onChangeText={t => handleChange('nhts_no', t)} />
-        <TextInput style={styles.input} placeholder="PhilHealth No." value={formData.philhealth_no} onChangeText={t => handleChange('philhealth_no', t)} />
+        <TextInput style={styles.input} placeholder="NHTS No." placeholderTextColor="#9ca3af" value={formData.nhts_no} onChangeText={t => handleChange('nhts_no', t)} />
+        <TextInput style={styles.input} placeholder="PhilHealth No." placeholderTextColor="#9ca3af" value={formData.philhealth_no} onChangeText={t => handleChange('philhealth_no', t)} />
 
         <Text style={styles.sectionTitle}>Obstetrical Score</Text>
         <View style={styles.grid}>
-            <TextInput style={styles.gridInput} placeholder="G" value={formData.g_score} onChangeText={t => handleChange('g_score', t)} keyboardType="numeric" />
-            <TextInput style={styles.gridInput} placeholder="P" value={formData.p_score} onChangeText={t => handleChange('p_score', t)} keyboardType="numeric" />
-            <TextInput style={styles.gridInput} placeholder="Term" value={formData.term} onChangeText={t => handleChange('term', t)} keyboardType="numeric" />
-            <TextInput style={styles.gridInput} placeholder="Preterm" value={formData.preterm} onChangeText={t => handleChange('preterm', t)} keyboardType="numeric" />
-            <TextInput style={styles.gridInput} placeholder="Abortion" value={formData.abortion} onChangeText={t => handleChange('abortion', t)} keyboardType="numeric" />
-            <TextInput style={styles.gridInput} placeholder="Living" value={formData.living_children} onChangeText={t => handleChange('living_children', t)} keyboardType="numeric" />
+            <TextInput style={styles.gridInput} placeholder="G" placeholderTextColor="#9ca3af" value={formData.g_score} onChangeText={t => handleChange('g_score', t)} keyboardType="numeric" />
+            <TextInput style={styles.gridInput} placeholder="P" placeholderTextColor="#9ca3af" value={formData.p_score} onChangeText={t => handleChange('p_score', t)} keyboardType="numeric" />
+            <TextInput style={styles.gridInput} placeholder="Term" placeholderTextColor="#9ca3af" value={formData.term} onChangeText={t => handleChange('term', t)} keyboardType="numeric" />
+            <TextInput style={styles.gridInput} placeholder="Preterm" placeholderTextColor="#9ca3af" value={formData.preterm} onChangeText={t => handleChange('preterm', t)} keyboardType="numeric" />
+            <TextInput style={styles.gridInput} placeholder="Abortion" placeholderTextColor="#9ca3af" value={formData.abortion} onChangeText={t => handleChange('abortion', t)} keyboardType="numeric" />
+            <TextInput style={styles.gridInput} placeholder="Living" placeholderTextColor="#9ca3af" value={formData.living_children} onChangeText={t => handleChange('living_children', t)} keyboardType="numeric" />
         </View>
     </>
 );
@@ -56,14 +56,14 @@ const Step1 = ({ formData, handleChange }) => (
 const Step2 = ({ formData, handleChange }) => (
     <>
         <Text style={styles.sectionTitle}>Past Menstrual Period</Text>
-        <TextInput style={styles.input} placeholder="LMP (YYYY-MM-DD)" value={formData.lmp} onChangeText={t => handleChange('lmp', t)} />
-        <TextInput style={styles.input} placeholder="EDC (YYYY-MM-DD)" value={formData.edc} onChangeText={t => handleChange('edc', t)} />
-        <TextInput style={styles.input} placeholder="Age of First Period" value={formData.age_first_period} onChangeText={t => handleChange('age_first_period', t)} keyboardType="numeric" />
+        <TextInput style={styles.input} placeholder="LMP (YYYY-MM-DD)" placeholderTextColor="#9ca3af" value={formData.lmp} onChangeText={t => handleChange('lmp', t)} />
+        <TextInput style={styles.input} placeholder="EDC (YYYY-MM-DD)" placeholderTextColor="#9ca3af" value={formData.edc} onChangeText={t => handleChange('edc', t)} />
+        <TextInput style={styles.input} placeholder="Age of First Period" placeholderTextColor="#9ca3af" value={formData.age_first_period} onChangeText={t => handleChange('age_first_period', t)} keyboardType="numeric" />
 
         <Text style={styles.sectionTitle}>OB History</Text>
-        <TextInput style={styles.input} placeholder="Age of Menarche" value={formData.age_of_menarche} onChangeText={t => handleChange('age_of_menarche', t)} keyboardType="numeric" />
-        <TextInput style={styles.input} placeholder="Amount of Bleeding (Scanty/Moderate/Heavy)" value={formData.bleeding_amount} onChangeText={t => handleChange('bleeding_amount', t)} />
-        <TextInput style={styles.input} placeholder="Duration of Menstruation (days)" value={formData.menstruation_duration} onChangeText={t => handleChange('menstruation_duration', t)} keyboardType="numeric" />
+        <TextInput style={styles.input} placeholder="Age of Menarche" placeholderTextColor="#9ca3af" value={formData.age_of_menarche} onChangeText={t => handleChange('age_of_menarche', t)} keyboardType="numeric" />
+        <TextInput style={styles.input} placeholder="Amount of Bleeding (Scanty/Moderate/Heavy)" placeholderTextColor="#9ca3af" value={formData.bleeding_amount} onChangeText={t => handleChange('bleeding_amount', t)} />
+        <TextInput style={styles.input} placeholder="Duration of Menstruation (days)" placeholderTextColor="#9ca3af" value={formData.menstruation_duration} onChangeText={t => handleChange('menstruation_duration', t)} keyboardType="numeric" />
     </>
 );
 
@@ -91,12 +91,12 @@ const Step4 = ({ formData, handleChange }) => (
         <Text style={styles.subSectionTitle}>Tetanus Toxoid Vaccination</Text>
         <View style={styles.grid}>
             {['TT1', 'TT2', 'TT3', 'TT4', 'TT5'].map(vaccine => (
-                <TextInput key={vaccine} style={styles.gridInput} placeholder={`${vaccine} Date`} value={formData[`vaccine_${vaccine}`] || ''} onChangeText={t => handleChange(`vaccine_${vaccine}`, t)} />
+                <TextInput key={vaccine} style={styles.gridInput} placeholderTextColor="#9ca3af" placeholder={`${vaccine} Date`} value={formData[`vaccine_${vaccine}`] || ''} onChangeText={t => handleChange(`vaccine_${vaccine}`, t)} />
             ))}
         </View>
         <Text style={styles.subSectionTitle}>Allergy & Family Planning</Text>
-        <TextInput style={styles.textArea} placeholder="History of Allergy and Drugs..." multiline value={formData.allergy_history} onChangeText={t => handleChange('allergy_history', t)} />
-        <TextInput style={styles.textArea} placeholder="Family Planning History..." multiline value={formData.family_planning_history} onChangeText={t => handleChange('family_planning_history', t)} />
+        <TextInput style={styles.textArea} placeholder="History of Allergy and Drugs..." placeholderTextColor="#9ca3af" multiline value={formData.allergy_history} onChangeText={t => handleChange('allergy_history', t)} />
+        <TextInput style={styles.textArea} placeholder="Family Planning History..." placeholderTextColor="#9ca3af" multiline value={formData.family_planning_history} onChangeText={t => handleChange('family_planning_history', t)} />
     </>
 );
 
@@ -160,14 +160,14 @@ export default function AddPatientModal({ onClose, onSave, mode = 'add', initial
         }
         setLoading(true);
 
+        // This patientRecord is used for both 'add' and 'edit'
         const patientRecord = {
             patient_id: patientId,
             first_name: formData.first_name,
             last_name: formData.last_name,
             age: parseInt(formData.age, 10),
             risk_level: 'NORMAL',
-            medical_history: formData, // The full form data is stored here
-            // Include other top-level fields for consistency
+            medical_history: formData,
             middle_name: formData.middle_name,
             contact_no: formData.contact_no,
         };
@@ -176,38 +176,53 @@ export default function AddPatientModal({ onClose, onSave, mode = 'add', initial
         const db = getDatabase();
 
         try {
-            if (netInfo.isConnected) {
-                // --- ONLINE LOGIC ---
-                console.log("Online: Saving patient directly to Supabase...");
-                const { error } = await supabase.from('patients').insert([patientRecord]).select().single();
-                if (error) throw error;
-                addNotification('New patient added successfully.', 'success');
-            } else {
-                // --- OFFLINE LOGIC ---
-                console.log("Offline: Saving patient locally...");
-                await db.withTransactionAsync(async () => {
-                    // 1. Insert the patient into the local database
-                    const statement = await db.prepareAsync(
-                        'INSERT INTO patients (patient_id, first_name, last_name, age, risk_level, medical_history) VALUES (?, ?, ?, ?, ?, ?);'
-                    );
-                    await statement.executeAsync([
-                        patientRecord.patient_id, patientRecord.first_name, patientRecord.last_name,
-                        patientRecord.age, patientRecord.risk_level, JSON.stringify(patientRecord.medical_history)
-                    ]);
-                    await statement.finalizeAsync();
+            if (mode === 'add') {
+                // --- 'ADD' MODE LOGIC (Your existing code is great) ---
+                if (netInfo.isConnected) {
+                    console.log("Online: Saving new patient to Supabase...");
+                    const { error } = await supabase.from('patients').insert([patientRecord]);
+                    if (error) throw error;
+                    addNotification('New patient added successfully.', 'success');
+                } else {
+                    console.log("Offline: Saving new patient locally...");
+                    await db.withTransactionAsync(async () => {
+                        const stmt = await db.prepareAsync('INSERT INTO patients (patient_id, first_name, last_name, age, risk_level, medical_history) VALUES (?, ?, ?, ?, ?, ?);');
+                        await stmt.executeAsync([patientRecord.patient_id, patientRecord.first_name, patientRecord.last_name, patientRecord.age, patientRecord.risk_level, JSON.stringify(patientRecord.medical_history)]);
+                        await stmt.finalizeAsync();
 
-                    // 2. Add the action to the sync queue
-                    const syncStatement = await db.prepareAsync(
-                        'INSERT INTO sync_queue (action, table_name, payload) VALUES (?, ?, ?);'
-                    );
-                    await syncStatement.executeAsync(['create', 'patients', JSON.stringify(patientRecord)]);
-                    await syncStatement.finalizeAsync();
-                });
-                addNotification('Patient saved locally. Will sync when online.', 'success');
+                        const syncStmt = await db.prepareAsync('INSERT INTO sync_queue (action, table_name, payload) VALUES (?, ?, ?);');
+                        await syncStmt.executeAsync(['create', 'patients', JSON.stringify(patientRecord)]);
+                        await syncStmt.finalizeAsync();
+                    });
+                    addNotification('Patient saved locally. Will sync when online.', 'success');
+                }
+                await logActivity('New Patient Added', `ID: ${patientId}`);
+
+            } else {
+                // --- 'EDIT' MODE LOGIC (This is the new part) ---
+                if (netInfo.isConnected) {
+                    console.log("Online: Updating patient in Supabase...");
+                    const { error } = await supabase.from('patients').update(patientRecord).eq('id', initialData.id);
+                    if (error) throw error;
+                    addNotification('Patient updated successfully.', 'success');
+                } else {
+                    console.log("Offline: Updating patient locally...");
+                    await db.withTransactionAsync(async () => {
+                        const stmt = await db.prepareAsync('UPDATE patients SET first_name = ?, last_name = ?, age = ?, risk_level = ?, medical_history = ? WHERE id = ?;');
+                        await stmt.executeAsync([patientRecord.first_name, patientRecord.last_name, patientRecord.age, patientRecord.risk_level, JSON.stringify(patientRecord.medical_history), initialData.id]);
+                        await stmt.finalizeAsync();
+                        
+                        const syncStmt = await db.prepareAsync('INSERT INTO sync_queue (action, table_name, payload) VALUES (?, ?, ?);');
+                        // Queue an 'update' action with the full record, including the ID
+                        await syncStmt.executeAsync(['update', 'patients', JSON.stringify({ ...patientRecord, id: initialData.id })]);
+                        await syncStmt.finalizeAsync();
+                    });
+                    addNotification('Patient updated locally. Will sync when online.', 'success');
+                }
+                await logActivity('Patient Updated', `ID: ${patientId}`);
             }
             
-            await logActivity('New Patient Added', `ID: ${patientId}`);
-            onSave(); // This will trigger a re-fetch on the main screen
+            onSave(); // Trigger a re-fetch on the main screen
             onClose();
 
         } catch (error) {
@@ -277,7 +292,7 @@ const styles = StyleSheet.create({
     patientId: { fontSize: 16, fontWeight: 'bold', color: '#374151' },
     sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#1f2937', marginTop: 20, marginBottom: 15, borderBottomWidth: 1, borderColor: '#e5e7eb', paddingBottom: 5 },
     subSectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#374151', marginTop: 15, marginBottom: 10 },
-    input: { backgroundColor: '#f9fafb', paddingHorizontal: 15, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db', fontSize: 16, marginBottom: 10 },
+    input: { backgroundColor: '#f9fafb', paddingHorizontal: 15, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db', fontSize: 16, marginBottom: 1, color: '#111827' },
     row: { flexDirection: 'row', justifyContent: 'space-between' },
     inputRow: { width: '48%' },
     grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },

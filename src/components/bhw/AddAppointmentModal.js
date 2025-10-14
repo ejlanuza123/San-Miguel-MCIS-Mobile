@@ -13,7 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import CalendarPickerModal from './CalendarPickerModal';
 import TimePickerModal from '../common/TimePickerModal';
-import db from '../../services/database';
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from '../../services/database';
 import NetInfo from '@react-native-community/netinfo';
@@ -39,7 +38,6 @@ export default function AddAppointmentModal({ onClose, onSave }) {
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const { addNotification } = useNotification();
     const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
-    const [newPatientId, setNewPatientId] = useState('');
 
     useEffect(() => {
         const fetchAllPatients = async () => {
@@ -65,6 +63,18 @@ export default function AddAppointmentModal({ onClose, onSave }) {
         setSearchQuery(fullName);
         setIsSearching(false);
     };
+
+    // Fixed time selection handler
+    const handleTimeSelect = (time) => {
+        setFormData(prev => ({...prev, time: time}));
+        setIsTimePickerOpen(false); // Close modal immediately after selection
+    };
+
+    // Fixed picker change handler
+    const handleReasonChange = (itemValue) => {
+        setFormData(prev => ({...prev, reason: itemValue}));
+    };
+
     const isFormValid = formData.patient_id && formData.reason && formData.date && formData.time;
 
     const handleSave = async () => {
@@ -105,8 +115,12 @@ export default function AddAppointmentModal({ onClose, onSave }) {
                         'INSERT INTO appointments (patient_display_id, patient_name, reason, date, time, status) VALUES (?, ?, ?, ?, ?, ?);'
                     );
                     await statement.executeAsync([
-                        appointmentRecord.patient_display_id, appointmentRecord.patient_name, appointmentRecord.reason,
-                        appointmentRecord.date, appointmentRecord.time, appointmentRecord.status
+                        appointmentRecord.patient_display_id, 
+                        appointmentRecord.patient_name, 
+                        appointmentRecord.reason,
+                        appointmentRecord.date, 
+                        appointmentRecord.time, 
+                        appointmentRecord.status
                     ]);
                     await statement.finalizeAsync();
 
@@ -134,22 +148,26 @@ export default function AddAppointmentModal({ onClose, onSave }) {
     return (
         <>
             {/* Calendar Modal */}
-            <Modal transparent={true} visible={isCalendarOpen} animationType="fade">
+            <Modal 
+                transparent={true} 
+                visible={isCalendarOpen} 
+                animationType="fade"
+                onRequestClose={() => setIsCalendarOpen(false)}
+            >
                 <CalendarPickerModal 
                     onClose={() => setIsCalendarOpen(false)}
                     onDateSelect={(date) => setFormData(prev => ({ ...prev, date: date }))}
                 />
             </Modal>
+            
             <TimePickerModal
                 isVisible={isTimePickerOpen}
                 onClose={() => setIsTimePickerOpen(false)}
-                onTimeSelect={(time) => {
-                    setFormData(prev => ({...prev, time: time}));
-                }}
+                onTimeSelect={handleTimeSelect} // Use the fixed handler
             />
 
             <KeyboardAvoidingView 
-                behavior={Platform.OS === "android" ? "padding" : undefined}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={{ flex: 1 }}
             >
                 <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -163,13 +181,18 @@ export default function AddAppointmentModal({ onClose, onSave }) {
                     </View>
 
                     {/* Scrollable form */}
-                    <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+                    <ScrollView 
+                        contentContainerStyle={styles.scrollContent} 
+                        keyboardShouldPersistTaps="handled"
+                        showsVerticalScrollIndicator={false}
+                    >
                         {/* Patient Search */}
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Patient Name</Text>
                             <TextInput
                                 style={styles.input}
                                 placeholder="Type to search..."
+                                placeholderTextColor="#9ca3af"
                                 value={searchQuery}
                                 onFocus={() => setIsSearching(true)}
                                 onChangeText={(text) => {
@@ -194,7 +217,12 @@ export default function AddAppointmentModal({ onClose, onSave }) {
 
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Patient ID</Text>
-                            <TextInput style={[styles.input, styles.readOnlyInput]} value={formData.patient_id} editable={false} />
+                            <TextInput 
+                                style={[styles.input, styles.readOnlyInput]} 
+                                placeholderTextColor="#9ca3af" 
+                                value={formData.patient_id} 
+                                editable={false} 
+                            />
                         </View>
 
                         <View style={styles.inputGroup}>
@@ -202,7 +230,7 @@ export default function AddAppointmentModal({ onClose, onSave }) {
                             <View style={styles.pickerContainer}>
                                 <Picker
                                     selectedValue={formData.reason}
-                                    onValueChange={(itemValue) => handleChange('reason', itemValue)}
+                                    onValueChange={handleReasonChange}
                                     style={styles.picker}
                                 >
                                     <Picker.Item label="Select appointment type..." value="" />
@@ -216,22 +244,40 @@ export default function AddAppointmentModal({ onClose, onSave }) {
                         <View style={styles.row}>
                             <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
                                 <Text style={styles.label}>Date</Text>
-                                <TouchableOpacity style={styles.dateInput} onPress={() => setIsCalendarOpen(true)}>
-                                    <Text style={styles.dateText}>{formData.date || 'Select a date'}</Text>
+                                <TouchableOpacity 
+                                    style={styles.dateInput} 
+                                    onPress={() => setIsCalendarOpen(true)}
+                                >
+                                    <Text style={[styles.dateText, !formData.date && styles.placeholderText]}>
+                                        {formData.date || 'Select a date'}
+                                    </Text>
                                     <CalendarIcon />
                                 </TouchableOpacity>
                             </View>
                             <View style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}>
                                 <Text style={styles.label}>Time</Text>
-                                <TouchableOpacity style={styles.dateInput} onPress={() => setIsTimePickerOpen(true)}>
-                                    <Text style={styles.dateText}>{formData.time || 'Select a time'}</Text>
+                                <TouchableOpacity 
+                                    style={styles.dateInput} 
+                                    onPress={() => setIsTimePickerOpen(true)}
+                                >
+                                    <Text style={[styles.dateText, !formData.time && styles.placeholderText]}>
+                                        {formData.time || 'Select a time'}
+                                    </Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
 
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Notes (Optional)</Text>
-                            <TextInput style={[styles.input, styles.textArea]} multiline value={formData.notes} onChangeText={(text) => setFormData(prev => ({...prev, notes: text}))}/>
+                            <TextInput 
+                                style={[styles.input, styles.textArea]} 
+                                placeholder="Add any additional notes..."
+                                placeholderTextColor="#9ca3af" 
+                                multiline 
+                                value={formData.notes} 
+                                onChangeText={(text) => setFormData(prev => ({...prev, notes: text}))}
+                                textAlignVertical="top"
+                            />
                         </View>
                     </ScrollView>
 
@@ -253,35 +299,94 @@ export default function AddAppointmentModal({ onClose, onSave }) {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f0f4f8' },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 15, borderBottomWidth: 1, borderColor: '#e5e7eb', backgroundColor: 'white' },
+    header: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        padding: 15, 
+        borderBottomWidth: 1, 
+        borderColor: '#e5e7eb', 
+        backgroundColor: 'white' 
+    },
     headerTitle: { fontSize: 18, fontWeight: 'bold' },
     backButton: { padding: 5 },
     scrollContent: { padding: 20, paddingBottom: 40 },
     inputGroup: { marginBottom: 15 },
     label: { fontSize: 14, fontWeight: '600', color: '#4b5563', marginBottom: 8 },
-    input: { backgroundColor: 'white', paddingHorizontal: 15, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db', fontSize: 16 },
+    input: { 
+        backgroundColor: 'white', 
+        paddingHorizontal: 15, 
+        paddingVertical: 12, 
+        borderRadius: 10, 
+        borderWidth: 1, 
+        borderColor: '#d1d5db', 
+        fontSize: 16, 
+        color: '#111827' 
+    },
     readOnlyInput: { backgroundColor: '#e5e7eb', color: '#6b7280' },
     row: { flexDirection: 'row', justifyContent: 'space-between' },
-    dateInput: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', paddingHorizontal: 15, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db' },
-    dateText: { fontSize: 16 },
-    textArea: { height: 100, textAlignVertical: 'top' },
-    footer: { padding: 20, borderTopWidth: 1, borderColor: '#e5e7eb', backgroundColor: 'white' },
-    saveButton: { backgroundColor: '#3b82f6', padding: 15, borderRadius: 10, alignItems: 'center' },
-    saveButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-    disabledButton: {
-        backgroundColor: '#9ca3af', // A gray color for the disabled state
+    dateInput: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        backgroundColor: 'white', 
+        paddingHorizontal: 15, 
+        paddingVertical: 12, 
+        borderRadius: 10, 
+        borderWidth: 1, 
+        borderColor: '#d1d5db' 
     },
-    searchResultsContainer: { marginTop: 5, backgroundColor: 'white', borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db', maxHeight: 150 },
-    searchResultItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+    dateText: { fontSize: 16, color: '#111827' },
+    placeholderText: { color: '#9ca3af' },
+    textArea: { 
+        height: 100, 
+        textAlignVertical: 'top',
+        paddingTop: 12
+    },
+    footer: { 
+        padding: 20, 
+        borderTopWidth: 1, 
+        borderColor: '#e5e7eb', 
+        backgroundColor: 'white' 
+    },
+    saveButton: { 
+        backgroundColor: '#3b82f6', 
+        padding: 15, 
+        borderRadius: 10, 
+        alignItems: 'center' 
+    },
+    saveButtonText: { 
+        color: 'white', 
+        fontWeight: 'bold', 
+        fontSize: 16 
+    },
+    disabledButton: {
+        backgroundColor: '#9ca3af',
+    },
+    searchResultsContainer: { 
+        marginTop: 5, 
+        backgroundColor: 'white', 
+        borderRadius: 10, 
+        borderWidth: 1, 
+        borderColor: '#d1d5db', 
+        maxHeight: 150 
+    },
+    searchResultItem: { 
+        padding: 15, 
+        borderBottomWidth: 1, 
+        borderBottomColor: '#f3f4f6' 
+    },
     pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 10,
-    backgroundColor: '#f9fafb',
-    justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        borderRadius: 10,
+        backgroundColor: 'white',
+        justifyContent: 'center',
+        overflow: 'hidden'
     },
     picker: {
         height: 50,
         width: '100%',
+        color: '#111827'
     },
 });

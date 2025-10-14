@@ -37,48 +37,39 @@ const linking = {
 };
 
 function RootNavigator() {
-  const { user, loading } = useAuth();
-  const [isFirstLaunch, setIsFirstLaunch] = useState(null);
+  const { user, loading, isOnboardingComplete } = useAuth();
   const navigationRef = useNavigationContainerRef();
 
-  useEffect(() => {
-    // FOR DEVELOPMENT: Uncomment the line below to always see the onboarding flow
-    // AsyncStorage.removeItem('hasCompletedOnboarding'); // Now it's safely commented out
-
-    AsyncStorage.getItem("hasCompletedOnboarding").then((value) => {
-      if (value === null) {
-        setIsFirstLaunch(true);
-      } else {
-        setIsFirstLaunch(false);
-      }
-    });
-  }, []);
-
-  if (loading || isFirstLaunch === null) {
-    return null; // Or a loading view
+  if (loading) {
+    return <SplashScreen />;
   }
 
   return (
- 
-        <NavigationContainer ref={navigationRef} linking={linking}>
-          <Stack.Navigator
-            screenOptions={{ headerShown: false }}
-            initialRouteName={user ? "App" : isFirstLaunch ? "Splash" : "Auth"}
-          >
-            {user ? (
-              // If user is logged in, they only see the main app navigator
-              <Stack.Screen name="App" component={AppNavigator} />
-            ) : (
-              // If no user, all onboarding and auth screens are available
-              <>
-                <Stack.Screen name="Splash" component={SplashScreen} />
-                <Stack.Screen name="GetStarted" component={GetStartedScreen} />
-                <Stack.Screen name="Terms" component={TermsAndConditionsScreen} />
-                <Stack.Screen name="Auth" component={AuthNavigator} />
-              </>
-            )}
-          </Stack.Navigator>
-        </NavigationContainer>
+    <NavigationContainer ref={navigationRef} linking={linking}>
+      <Stack.Navigator
+        screenOptions={{ headerShown: false }}
+        initialRouteName={
+          user 
+            ? "App" 
+            : isOnboardingComplete 
+              ? "Auth"  // Go directly to Auth (role selection) if onboarding is complete
+              : "Splash" // Show onboarding flow if first time
+        }
+      >
+        {user ? (
+          // If user is logged in, they only see the main app navigator
+          <Stack.Screen name="App" component={AppNavigator} />
+        ) : (
+          // If no user, show appropriate flow based on onboarding status
+          <>
+            <Stack.Screen name="Splash" component={SplashScreen} />
+            <Stack.Screen name="GetStarted" component={GetStartedScreen} />
+            <Stack.Screen name="Terms" component={TermsAndConditionsScreen} />
+            <Stack.Screen name="Auth" component={AuthNavigator} />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 

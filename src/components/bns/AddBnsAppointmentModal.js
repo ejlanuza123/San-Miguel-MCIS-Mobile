@@ -48,6 +48,11 @@ export default function AddBnsAppointmentModal({ onClose, onSave }) {
         setSearchQuery(fullName);
         setIsSearching(false);
     };
+    
+    const handleTimeSelect = (time) => {
+        setFormData(prev => ({...prev, time: time}));
+        setIsTimePickerOpen(false); // Close modal immediately after selection
+    };
 
     const handleSave = async () => {
         if (!formData.patient_id || !formData.date || !formData.time || !formData.reason) {
@@ -115,29 +120,45 @@ export default function AddBnsAppointmentModal({ onClose, onSave }) {
 
     return (
         <>
-            <Modal transparent={true} visible={isCalendarOpen} animationType="fade"><CalendarPickerModal onClose={() => setIsCalendarOpen(false)} onDateSelect={(date) => setFormData(prev => ({...prev, date}))} disableWeekends={true} /></Modal>
-            <Modal transparent={true} visible={isTimePickerOpen} animationType="fade"><TimePickerModal isVisible={isTimePickerOpen} onClose={() => setIsTimePickerOpen(false)} onTimeSelect={(time) => setFormData(prev => ({...prev, time}))} /></Modal>
+            <Modal 
+                transparent={true} 
+                visible={isCalendarOpen} 
+                animationType="fade"
+                onRequestClose={() => setIsCalendarOpen(false)}
+            >
+                <CalendarPickerModal 
+                    onClose={() => setIsCalendarOpen(false)} 
+                    onDateSelect={(date) => setFormData(prev => ({...prev, date}))} 
+                    disableWeekends={true} 
+                />
+            </Modal>
+            
+            <TimePickerModal
+                isVisible={isTimePickerOpen}
+                onClose={() => setIsTimePickerOpen(false)}
+                onTimeSelect={handleTimeSelect} // Use the fixed handler
+            />
             
             <SafeAreaView style={styles.container}>
                 <View style={styles.header}><TouchableOpacity onPress={onClose}><BackArrowIcon /></TouchableOpacity><Text style={styles.headerTitle}>New Child Appointment</Text><View style={{width: 24}} /></View>
                 <ScrollView contentContainerStyle={styles.formContainer}>
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Child's Name</Text>
-                        <TextInput style={styles.input} placeholder="Type to search..." value={searchQuery} onChangeText={setSearchQuery} onFocus={() => setIsSearching(true)} />
+                        <TextInput style={styles.input} placeholder="Type to search..." placeholderTextColor="#9ca3af" value={searchQuery} onChangeText={setSearchQuery} onFocus={() => setIsSearching(true)} />
                         {isSearching && searchResults.length > 0 && (
                             <View style={styles.searchResultsContainer}>
                                 <FlatList data={searchResults.slice(0, 5)} keyExtractor={item => item.id.toString()} renderItem={({ item }) => (<TouchableOpacity style={styles.searchResultItem} onPress={() => handlePatientSelect(item)}><Text>{`${item.first_name} ${item.last_name} (${item.child_id})`}</Text></TouchableOpacity>)} />
                             </View>
                         )}
                     </View>
-                    <View style={styles.inputGroup}><Text style={styles.label}>Child ID</Text><TextInput style={[styles.input, styles.readOnlyInput]} value={formData.patient_id} editable={false} /></View>
+                    <View style={styles.inputGroup}><Text style={styles.label}>Child ID</Text><TextInput style={[styles.input, styles.readOnlyInput]} placeholderTextColor="#9ca3af" value={formData.patient_id} editable={false} /></View>
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Appointment Type</Text>
                         <View style={styles.pickerContainer}>
                             <Picker
                                 selectedValue={formData.reason}
                                 onValueChange={(itemValue) => setFormData(prev => ({...prev, reason: itemValue}))}
-                                style={styles.picker} // Style for the picker text itself
+                                style={[styles.picker, { color: '#111827' }]} 
                             >
                                 <Picker.Item label="Select appointment type..." value="" />
                                 <Picker.Item label="Child Checkup" value="Child Checkup" />
@@ -164,7 +185,7 @@ const styles = StyleSheet.create({
     formContainer: { padding: 20 },
     inputGroup: { marginBottom: 15 },
     label: { fontSize: 14, fontWeight: '600', color: '#4b5563', marginBottom: 8 },
-    input: { backgroundColor: '#f3f4f6', padding: 15, borderRadius: 10, fontSize: 16, borderWidth: 1, borderColor: '#e5e7eb' },
+    input: { backgroundColor: '#f3f4f6', padding: 15, borderRadius: 10, fontSize: 16, borderWidth: 1, borderColor: '#e5e7eb', color: '#111827' },
     readOnlyInput: { backgroundColor: '#e5e7eb', color: '#6b7280' },
     row: { flexDirection: 'row', gap: 10 },
     dateInput: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f3f4f6', paddingHorizontal: 15, paddingVertical: 15, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb' },

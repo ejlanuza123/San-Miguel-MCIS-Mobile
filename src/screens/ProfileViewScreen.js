@@ -16,32 +16,32 @@ import { LinearGradient } from "expo-linear-gradient";
 const getRoleColors = (role) => {
   if (role === "BNS") {
     return {
-      primary: "#10b981", // Emerald Green
-      dark: "#059669", // Dark Emerald
-      headerGradient: ["#10b981", "#059669"],
-      buttonGradient: ["#10b981", "#059669"],
-      avatarBorder: "#059669",
-      editButtonShadow: "#10b981",
+      primary: "#6ee7b7", // Very Light Emerald Green
+      dark: "#34d399", // Very Light Dark Emerald
+      headerGradient: ["#6ee7b7", "#34d399"],
+      buttonGradient: ["#6ee7b7", "#34d399"],
+      avatarBorder: "#34d399",
+      editButtonShadow: "#6ee7b7",
     };
   }
   if (role === "USER/MOTHER/GUARDIAN") {
     return {
-      primary: "#db2777", // Rose Pink
-      dark: "#831843", // Dark Rose
-      headerGradient: ["#db2777", "#831843"],
-      buttonGradient: ["#be185d", "#831843"],
-      avatarBorder: "#831843",
-      editButtonShadow: "#be185d",
+      primary: "#f9a8d4", // Very Light Rose Pink
+      dark: "#f472b6", // Very Light Dark Rose
+      headerGradient: ["#f9a8d4", "#f472b6"],
+      buttonGradient: ["#f9a8d4", "#f472b6"],
+      avatarBorder: "#f472b6",
+      editButtonShadow: "#f9a8d4",
     };
   }
-  // Default BHW (Blue) - Used if profile is null
+  // Default BHW (Very Light Blue) - Used if profile is null
   return {
-    primary: "#2563eb",
-    dark: "#1e3a8a",
-    headerGradient: ["#2563eb", "#1e3a8a"],
-    buttonGradient: ["#3b82f6", "#1e40af"],
-    avatarBorder: "#2563eb",
-    editButtonShadow: "#2563eb",
+    primary: "#93c5fd", // Very Light Blue
+    dark: "#60a5fa", // Very Light Dark Blue
+    headerGradient: ["#93c5fd", "#60a5fa"],
+    buttonGradient: ["#93c5fd", "#60a5fa"],
+    avatarBorder: "#60a5fa",
+    editButtonShadow: "#93c5fd",
   };
 };
 

@@ -236,8 +236,6 @@ const LoginScreen = ({ route, navigation }) => {
           </View>
         </SafeAreaView>
       </ImageBackground>
-
-      {/* --- MOVED: The ErrorModal is now outside the ImageBackground --- */}
       <ErrorModal
         visible={errorModalVisible}
         onClose={() => setErrorModalVisible(false)}
@@ -292,7 +290,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingLeft: 10,
     fontSize: 16,
-    color: "#111827"
+    color: "#111827",
   },
   button: {
     backgroundColor: "#2563eb",

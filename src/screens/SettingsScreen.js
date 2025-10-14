@@ -21,39 +21,39 @@ import Svg, { Path } from "react-native-svg";
 const getRoleColors = (role) => {
   if (role === "BNS") {
     return {
-      primary: "#10b981", // Emerald Green
-      dark: "#059669", // Dark Emerald
-      light: "#34d399", // Light Emerald
-      headerGradient: ["#10b981", "#059669"],
-      iconFill: "#059669",
-      iconBg: "#d1fae5",
+      primary: "#6ee7b7", // Very Light Emerald Green
+      dark: "#34d399", // Very Light Dark Emerald
+      light: "#a7f3d0", // Very Light Emerald
+      headerGradient: ["#6ee7b7", "#34d399"],
+      iconFill: "#34d399",
+      iconBg: "#ecfdf5",
       // Keep Logout as standard red for danger
-      logoutGradient: ["#ef4444", "#b91c1c"],
-      logoutShadow: "#ef4444",
+      logoutGradient: ["#fca5a5", "#ef4444"],
+      logoutShadow: "#fca5a5",
     };
   }
   if (role === "USER/MOTHER/GUARDIAN") {
     return {
-      primary: "#db2777", // Rose Pink
-      dark: "#831843", // Dark Rose
-      light: "#fbcfe8", // Light Pink
-      headerGradient: ["#db2777", "#831843"],
-      iconFill: "#831843",
-      iconBg: "#fce7f3",
-      logoutGradient: ["#db2777", "#9d174d"], // Rose Gradient for Logout
-      logoutShadow: "#db2777",
+      primary: "#f9a8d4", // Very Light Rose Pink
+      dark: "#f472b6", // Very Light Dark Rose
+      light: "#fce7f3", // Very Light Pink
+      headerGradient: ["#f9a8d4", "#f472b6"],
+      iconFill: "#f472b6",
+      iconBg: "#fdf2f8",
+      logoutGradient: ["#f9a8d4", "#f472b6"], // Light Rose Gradient for Logout
+      logoutShadow: "#f9a8d4",
     };
   }
-  // Default BHW (Blue)
+  // Default BHW (Very Light Blue)
   return {
-    primary: "#2563eb",
-    dark: "#1e3a8a",
-    light: "#93c5fd",
-    headerGradient: ["#2563eb", "#1e3a8a"],
-    iconFill: "#3b82f6",
-    iconBg: "#eff6ff",
-    logoutGradient: ["#ef4444", "#b91c1c"],
-    logoutShadow: "#ef4444",
+    primary: "#93c5fd", // Very Light Blue
+    dark: "#60a5fa", // Very Light Dark Blue
+    light: "#dbeafe", // Very Light Blue
+    headerGradient: ["#93c5fd", "#60a5fa"],
+    iconFill: "#60a5fa",
+    iconBg: "#f0f9ff",
+    logoutGradient: ["#fca5a5", "#ef4444"],
+    logoutShadow: "#fca5a5",
   };
 };
 

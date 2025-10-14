@@ -40,16 +40,17 @@ export const initDatabase = async () => {
       );
 
       CREATE TABLE IF NOT EXISTS child_records (
-            id INTEGER PRIMARY KEY NOT NULL,
-            child_id TEXT UNIQUE,
-            first_name TEXT,
-            last_name TEXT,
-            dob TEXT,
-            sex TEXT,
-            mother_name TEXT,
-            nutrition_status TEXT,
-            health_details TEXT 
-      );
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        supabase_id TEXT UNIQUE, -- store UUID here instead
+        child_id TEXT UNIQUE,
+        first_name TEXT,
+        last_name TEXT,
+        dob TEXT,
+        sex TEXT,
+        mother_name TEXT,
+        nutrition_status TEXT,
+        health_details TEXT
+    );
       
       CREATE TABLE IF NOT EXISTS sync_queue (
         id INTEGER PRIMARY KEY AUTOINCREMENT\,

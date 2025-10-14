@@ -26,6 +26,12 @@ export default function ScheduleAppointmentScreen({ navigation }) {
 
     const isFormValid = reason && date && time;
 
+    // Fixed time selection handler
+    const handleTimeSelect = (selectedTime) => {
+        setTime(selectedTime);
+        setIsTimePickerOpen(false); // Close modal immediately after selection
+    };
+
     const handleRequestAppointment = async () => {
         if (!isFormValid) {
             Alert.alert("Incomplete Form", "Please select a reason, date, and time.");
@@ -56,12 +62,24 @@ export default function ScheduleAppointmentScreen({ navigation }) {
 
     return (
         <>
-            <Modal transparent={true} visible={isCalendarOpen} animationType="fade">
-                <CalendarPickerModal onClose={() => setIsCalendarOpen(false)} onDateSelect={setDate} disableWeekends={true} />
+            <Modal 
+                transparent={true} 
+                visible={isCalendarOpen} 
+                animationType="fade"
+                onRequestClose={() => setIsCalendarOpen(false)}
+            >
+                <CalendarPickerModal 
+                    onClose={() => setIsCalendarOpen(false)} 
+                    onDateSelect={setDate} 
+                    disableWeekends={true} 
+                />
             </Modal>
-            <Modal transparent={true} visible={isTimePickerOpen} animationType="fade">
-                <TimePickerModal isVisible={isTimePickerOpen} onClose={() => setIsTimePickerOpen(false)} onTimeSelect={setTime} />
-            </Modal>
+            
+            <TimePickerModal
+                isVisible={isTimePickerOpen}
+                onClose={() => setIsTimePickerOpen(false)}
+                onTimeSelect={handleTimeSelect} // Use the fixed handler
+            />
 
             <SafeAreaView style={styles.container}>
                 {/* NEW: Header with a back button */}
@@ -73,7 +91,11 @@ export default function ScheduleAppointmentScreen({ navigation }) {
                     <View style={{ width: 24 }} />
                 </View>
                 
-                <ScrollView contentContainerStyle={styles.scrollContent}>
+                <ScrollView 
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                >
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>Appointment Details</Text>
 
@@ -81,7 +103,11 @@ export default function ScheduleAppointmentScreen({ navigation }) {
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Appointment Type</Text>
                             <View style={styles.pickerContainer}>
-                                <Picker selectedValue={reason} onValueChange={(itemValue) => setReason(itemValue)} style={styles.picker}>
+                                <Picker 
+                                    selectedValue={reason} 
+                                    onValueChange={(itemValue) => setReason(itemValue)} 
+                                    style={styles.picker}
+                                >
                                     <Picker.Item label="Select a reason..." value="" />
                                     <Picker.Item label="General Checkup" value="General Checkup" />
                                     <Picker.Item label="Vaccination" value="Vaccination" />
@@ -95,14 +121,24 @@ export default function ScheduleAppointmentScreen({ navigation }) {
                         <View style={styles.row}>
                             <View style={[styles.inputGroup, { flex: 1 }]}>
                                 <Text style={styles.label}>Date</Text>
-                                <TouchableOpacity style={styles.input} onPress={() => setIsCalendarOpen(true)}>
-                                    <Text style={styles.inputText}>{date || 'Select Date'}</Text>
+                                <TouchableOpacity 
+                                    style={styles.input} 
+                                    onPress={() => setIsCalendarOpen(true)}
+                                >
+                                    <Text style={[styles.inputText, !date && styles.placeholderText]}>
+                                        {date || 'Select Date'}
+                                    </Text>
                                 </TouchableOpacity>
                             </View>
                             <View style={[styles.inputGroup, { flex: 1 }]}>
                                 <Text style={styles.label}>Time</Text>
-                                <TouchableOpacity style={styles.input} onPress={() => setIsTimePickerOpen(true)}>
-                                    <Text style={styles.inputText}>{time || 'Select Time'}</Text>
+                                <TouchableOpacity 
+                                    style={styles.input} 
+                                    onPress={() => setIsTimePickerOpen(true)}
+                                >
+                                    <Text style={[styles.inputText, !time && styles.placeholderText]}>
+                                        {time || 'Select Time'}
+                                    </Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -113,9 +149,11 @@ export default function ScheduleAppointmentScreen({ navigation }) {
                             <TextInput
                                 style={[styles.input, styles.notesInput]}
                                 placeholder="Add any additional details for the health worker..."
+                                placeholderTextColor="#9ca3af"
                                 value={notes}
                                 onChangeText={setNotes}
                                 multiline={true}
+                                textAlignVertical="top"
                             />
                         </View>
                     </View>
@@ -138,22 +176,81 @@ export default function ScheduleAppointmentScreen({ navigation }) {
 // NEW: Updated styles for the header and notes input
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f9fafb' },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 15, backgroundColor: 'white' },
+    header: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        paddingHorizontal: 10, 
+        paddingVertical: 15, 
+        backgroundColor: 'white',
+        borderBottomWidth: 1,
+        borderBottomColor: '#e5e7eb'
+    },
     backButton: { padding: 10 },
     title: { fontSize: 20, fontWeight: 'bold', color: '#111827' },
-    scrollContent: { padding: 20 },
-    card: { backgroundColor: 'white', borderRadius: 15, padding: 20, borderWidth: 1, borderColor: '#f3f4f6' },
+    scrollContent: { padding: 20, paddingBottom: 20 },
+    card: { 
+        backgroundColor: 'white', 
+        borderRadius: 15, 
+        padding: 20, 
+        borderWidth: 1, 
+        borderColor: '#f3f4f6',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
     cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#831843', marginBottom: 15 },
     inputGroup: { marginBottom: 20 },
     label: { fontSize: 14, fontWeight: '600', color: '#9d174d', marginBottom: 8 },
-    input: { backgroundColor: 'white', padding: 15, borderRadius: 10, borderWidth: 1, borderColor: '#fbcfe8', justifyContent: 'center', height: 54 },
-    notesInput: { height: 100, textAlignVertical: 'top', paddingTop: 15 },
-    inputText: { fontSize: 16 },
+    input: { 
+        backgroundColor: 'white', 
+        padding: 15, 
+        borderRadius: 10, 
+        borderWidth: 1, 
+        borderColor: '#fbcfe8', 
+        justifyContent: 'center', 
+        height: 54 
+    },
+    inputText: { fontSize: 16, color: '#111827' },
+    placeholderText: { color: '#9ca3af' },
+    notesInput: { 
+        height: 100, 
+        textAlignVertical: 'top', 
+        paddingTop: 15 
+    },
     row: { flexDirection: 'row', gap: 15 },
-    pickerContainer: { borderWidth: 1, borderColor: '#fbcfe8', borderRadius: 10, backgroundColor: 'white', justifyContent: 'center' },
-    picker: { height: 54 },
-    footer: { padding: 20, borderTopWidth: 1, borderColor: '#e5e7eb', backgroundColor: 'white' },
-    button: { backgroundColor: '#10b981', padding: 15, borderRadius: 15, alignItems: 'center' },
-    disabledButton: { backgroundColor: '#6ee7b7' },
-    buttonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+    pickerContainer: { 
+        borderWidth: 1, 
+        borderColor: '#fbcfe8', 
+        borderRadius: 10, 
+        backgroundColor: 'white', 
+        justifyContent: 'center',
+        overflow: 'hidden'
+    },
+    picker: { 
+        height: 54,
+        color: '#111827'
+    },
+    footer: { 
+        padding: 20, 
+        borderTopWidth: 1, 
+        borderColor: '#e5e7eb', 
+        backgroundColor: 'white' 
+    },
+    button: { 
+        backgroundColor: '#10b981', 
+        padding: 15, 
+        borderRadius: 15, 
+        alignItems: 'center' 
+    },
+    disabledButton: { 
+        backgroundColor: '#6ee7b7' 
+    },
+    buttonText: { 
+        color: 'white', 
+        fontWeight: 'bold', 
+        fontSize: 16 
+    },
 });

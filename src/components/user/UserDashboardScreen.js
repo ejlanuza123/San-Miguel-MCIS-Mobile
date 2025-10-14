@@ -169,11 +169,18 @@ export default function UserDashboardScreen() {
 
     return (
         <SafeAreaView style={styles.container} edges={['bottom']}>
-            <ScrollView contentContainerStyle={styles.content}>
+            <View style={styles.content}>
                 <Text style={styles.title}>Upcoming Appointment</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    style={styles.horizontalScroll}
+                    contentContainerStyle={styles.horizontalScrollContent}
+                >
                     {loading ? (
-                        <ActivityIndicator color="#c026d3" />
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator color="#c026d3" />
+                        </View>
                     ) : (
                         appointments.length > 0 ? appointments.map(app => (
                             <View key={app.id} style={styles.card}>
@@ -210,16 +217,18 @@ export default function UserDashboardScreen() {
                 >
                     <Text style={styles.addButtonText}>+ Add New Appointment</Text>
                 </TouchableOpacity>
-            </ScrollView>
+            </View>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: 'white' },
-    content: { padding: 20, paddingBottom: 100 },
+    content: { flex: 1, paddingTop: 10, paddingHorizontal: 20, paddingBottom: 50 },
     title: { fontSize: 18, fontWeight: 'bold', color: '#374151', marginBottom: 15 },
-    horizontalScroll: { marginHorizontal: -20, paddingHorizontal: 20, paddingBottom: 20 },
+    horizontalScroll: { marginHorizontal: -20 },
+    horizontalScrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
+    loadingContainer: { width: 220, justifyContent: 'center', alignItems: 'center' },
     card: { backgroundColor: '#fdf2f8', borderRadius: 20, padding: 20, marginRight: 15, width: 220, minHeight: 140, borderWidth: 1, borderColor: '#fbcfe8' },
     noAppointmentCard: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f9fafb' },
     noAppointmentText: { color: '#6b7280', fontStyle: 'italic' },
@@ -227,7 +236,7 @@ const styles = StyleSheet.create({
     cardTime: { fontSize: 32, fontWeight: 'bold', marginVertical: 4, color: '#be185d' },
     cardProvider: { fontSize: 15, fontWeight: '500', color: '#1f2937' },
     cardType: { fontSize: 14, color: '#4b5563' },
-    calendarContainer: { backgroundColor: '#fdf2f8', borderRadius: 15, padding: 0, borderWidth: 1, borderColor: '#fbcfe8', marginTop: 10 },
+    calendarContainer: { backgroundColor: '#fdf2f8', borderRadius: 15, padding: 1, borderWidth: 1, borderColor: '#fbcfe8', marginTop: 10 },
     calendarHeader: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
     calendarTitle: { fontSize: 16, fontWeight: 'bold', color: '#9d174d', marginHorizontal: 30 },
     arrow: { fontSize: 22, color: '#be185d', fontWeight: 'bold' },
@@ -237,7 +246,7 @@ const styles = StyleSheet.create({
     dayText: { fontSize: 14, color: '#4b5563' },
     todayCircle: { width: 30, height: 30, backgroundColor: '#db2777', borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
     todayText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
-    followUpButton: { backgroundColor: '#fb923c', padding: 15, borderRadius: 15, alignItems: 'center', marginTop: 15 },
+    followUpButton: { backgroundColor: '#fb923c', padding: 15, borderRadius: 15, alignItems: 'center', marginTop: 15, marginVertical: -5 },
     addButton: { backgroundColor: '#10b981', padding: 15, borderRadius: 15, alignItems: 'center', marginTop: 15 },
     addButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 });

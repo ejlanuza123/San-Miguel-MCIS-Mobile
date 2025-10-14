@@ -70,6 +70,7 @@ const UpdatePasswordScreen = ({ navigation }) => {
             <TextInput
               style={styles.input}
               placeholder="New Password"
+              placeholderTextColor="#9ca3af"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -80,6 +81,7 @@ const UpdatePasswordScreen = ({ navigation }) => {
             <TextInput
               style={styles.input}
               placeholder="Confirm New Password"
+              placeholderTextColor="#9ca3af"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
@@ -131,7 +133,7 @@ const styles = StyleSheet.create({
     width: "100%",
     marginTop: 15,
   },
-  input: { flex: 1, paddingVertical: 12, paddingLeft: 10, fontSize: 16 },
+  input: { flex: 1, paddingVertical: 12, paddingLeft: 10, fontSize: 16, color: '#111827' },
   button: {
     backgroundColor: "#2563eb",
     paddingVertical: 15,

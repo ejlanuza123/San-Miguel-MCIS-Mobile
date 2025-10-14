@@ -110,32 +110,37 @@ export default function ChildHealthRecordsScreen({ route, navigation }) {
         try {
             const netInfo = await NetInfo.fetch();
             if (netInfo.isConnected) {
-                console.log("Online: Fetching child records and caching...");
+                console.log("Online: Fetching child records from Supabase and caching...");
                 const { data: supabaseData, error } = await supabase.from('child_records').select('*').order('last_name');
 
                 if (error) {
                     addNotification('Could not fetch latest child records.', 'warning');
                 } else if (supabaseData) {
                     await db.withTransactionAsync(async () => {
-                        const stmt = await db.prepareAsync(
-                            'INSERT OR REPLACE INTO child_records (id, child_id, first_name, last_name, dob, sex, mother_name, nutrition_status, health_details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);'
-                        );
-                        await Promise.all(supabaseData.map(child => {
-                            const details = typeof child.health_details === 'string' ? child.health_details : JSON.stringify(child.health_details);
+                        const stmt = await db.prepareAsync(`
+                            INSERT OR REPLACE INTO child_records 
+                            (child_id, first_name, last_name, dob, sex, mother_name, nutrition_status, health_details)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                            `);
+
+                            await Promise.all(supabaseData.map(child => {
+                            const details = typeof child.health_details === 'string'
+                                ? child.health_details
+                                : JSON.stringify(child.health_details);
                             return stmt.executeAsync([
-                                null, // Let SQLite auto-generate integer ID
-                                child.child_id,
-                                child.first_name,
-                                child.last_name,
-                                child.dob,
-                                child.sex,
-                                child.mother_name,
-                                child.nutrition_status,
-                                details
-                                ])
+                            child.child_id,
+                            child.first_name,
+                            child.last_name,
+                            child.dob,
+                            child.sex,
+                            child.mother_name,
+                            child.nutrition_status,
+                            details
+                            ]);
                         }));
                         await stmt.finalizeAsync();
                     });
+                    console.log("Child records cached successfully.");
                 }
             }
 
@@ -160,14 +165,38 @@ export default function ChildHealthRecordsScreen({ route, navigation }) {
         const scannedId = route.params?.scannedPatientId;
         if (scannedId) {
             const findAndEditChild = async () => {
-                const { data: child, error } = await supabase.from('child_records').select('*').eq('child_id', scannedId).single();
-                if (error) { addNotification(`Child ID "${scannedId}" not found.`, 'error'); } 
-                else if (child) {
+                setLoading(true);
+                const netInfo = await NetInfo.fetch();
+
+                let child = null;
+                let error = null;
+
+                if (netInfo.isConnected) {
+                    // ONLINE: Fetch from Supabase
+                    const { data, error: supabaseError } = await supabase.from('child_records').select('*').eq('child_id', scannedId).single();
+                    child = data;
+                    error = supabaseError;
+                } else {
+                    // OFFLINE: Fetch from the local SQLite database
+                    const db = getDatabase();
+                    try {
+                        const result = await db.getFirstAsync('SELECT * FROM child_records WHERE child_id = ?;', [scannedId]);
+                        child = result;
+                    } catch (dbError) {
+                        error = dbError;
+                    }
+                }
+
+                setLoading(false);
+                if (error || !child) {
+                    addNotification(`Child ID "${scannedId}" not found.`, 'error');
+                } else {
                     setSelectedChild(child);
                     setModalMode('edit');
                     setIsAddModalOpen(true);
                 }
             };
+
             findAndEditChild();
             navigation.setParams({ scannedPatientId: null });
         }

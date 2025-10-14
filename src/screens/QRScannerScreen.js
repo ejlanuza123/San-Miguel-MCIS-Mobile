@@ -54,24 +54,32 @@ export default function QRScannerScreen({route}) {
         setScanned(true);
         Vibration.vibrate();
 
-        // 1. Determine the destination TAB and SCREEN names
-        const returnScreen = route.params?.returnScreen;
-        let tabName = 'Patient'; // This is the name of the Tab in your WorkerTabs
-        let screenName = 'PatientManagement'; // This is the screen inside the BhwStack
+        // 1. Check the format of the scanned data to determine the destination
+        let tabName = 'Patient'; // The destination tab is always 'Patient'
+        let screenName;
 
-        // If the return screen was a BNS screen, change the destination
-        if (returnScreen === 'BnsDashboard' || returnScreen === 'ChildHealthRecords') {
+        if (data.startsWith('C-')) {
+            // If the ID starts with 'C-', it's a child record
             screenName = 'ChildHealthRecords';
+            console.log(`Child ID scanned: ${data}. Navigating to ${screenName}...`);
+        } else if (data.startsWith('P-')) {
+            // If the ID starts with 'P-', it's a patient (mother) record
+            screenName = 'PatientManagement';
+            console.log(`Patient ID scanned: ${data}. Navigating to ${screenName}...`);
+        } else {
+            // If the QR code is invalid, show an alert and go back
+            alert('Invalid QR Code. Please scan a valid patient or child ID.');
+            navigation.goBack();
+            return;
         }
 
-        // 2. Navigate to the parent tab, and pass the target screen as a parameter
-        // This is the correct way to navigate to a nested screen from a modal.
+        // 2. Navigate to the correct nested screen
         navigation.navigate('Main', {
-            screen: tabName, // Go to the 'Patient' tab
+            screen: tabName,
             params: {
-                screen: screenName, // THEN go to the 'PatientManagement' screen...
+                screen: screenName,
                 params: {
-                    scannedPatientId: data // ...and pass the scanned ID to it.
+                    scannedPatientId: data
                 }
             }
         });

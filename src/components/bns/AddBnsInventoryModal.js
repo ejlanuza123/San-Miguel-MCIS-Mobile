@@ -1,7 +1,8 @@
 // src/components/bns/AddBnsInventoryModal.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, SafeAreaView, Modal } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Modal } from 'react-native';
 import { supabase } from '../../services/supabase';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNotification } from '../../context/NotificationContext';
 import { logActivity } from '../../services/activityLogger';
 import CalendarPickerModal from './CalendarPickerModal';
@@ -66,11 +67,11 @@ export default function AddBnsInventoryModal({ onClose, onSave, mode = 'add', in
             <SafeAreaView style={styles.modalContainer}>
                 <Text style={styles.modalTitle}>{mode === 'edit' ? 'Edit Item' : 'Add New Item'}</Text>
                 <View style={styles.form}>
-                    <View style={styles.inputGroup}><Text style={styles.label}>Item Name</Text><TextInput style={styles.input} value={formData.item_name || ''} onChangeText={t => handleChange('item_name', t)} /></View>
-                    <View style={styles.inputGroup}><Text style={styles.label}>Category</Text><TextInput style={styles.input} value={formData.category || ''} onChangeText={t => handleChange('category', t)} /></View>
-                    <View style={styles.inputGroup}><Text style={styles.label}>Quantity</Text><TextInput style={styles.input} value={String(formData.quantity || '')} onChangeText={t => handleChange('quantity', t)} keyboardType="numeric" /></View>
-                    <View style={styles.inputGroup}><Text style={styles.label}>Manufacture Date</Text><TouchableOpacity style={styles.dateInput} onPress={() => { setCalendarField('manufacture_date'); setIsCalendarOpen(true); }}><Text style={styles.dateText}>{formData.manufacture_date || 'Select a date'}</Text><CalendarIcon /></TouchableOpacity></View>
-                    <View style={styles.inputGroup}><Text style={styles.label}>Expiration Date</Text><TouchableOpacity style={styles.dateInput} onPress={() => { setCalendarField('expiration_date'); setIsCalendarOpen(true); }}><Text style={styles.dateText}>{formData.expiration_date || 'Select a date'}</Text><CalendarIcon /></TouchableOpacity></View>
+                    <View style={styles.inputGroup}><Text style={styles.label}>Item Name</Text><TextInput style={styles.input} placeholder="Enter item name" placeholderTextColor="#9ca3af" value={formData.item_name || ''} onChangeText={t => handleChange('item_name', t)} /></View>
+                    <View style={styles.inputGroup}><Text style={styles.label}>Category</Text><TextInput style={styles.input} placeholder="Medicines, Equipment, etc." placeholderTextColor="#9ca3af" value={formData.category || ''} onChangeText={t => handleChange('category', t)} /></View>
+                    <View style={styles.inputGroup}><Text style={styles.label}>Quantity</Text><TextInput style={styles.input} placeholder="Enter the Quantity" placeholderTextColor="#9ca3af" value={String(formData.quantity || '')} onChangeText={t => handleChange('quantity', t)} keyboardType="numeric" /></View>
+                    <View style={styles.inputGroup}><Text style={styles.label}>Manufacture Date</Text><TouchableOpacity style={styles.dateInput} placeholderTextColor="#9ca3af" onPress={() => { setCalendarField('manufacture_date'); setIsCalendarOpen(true); }}><Text style={styles.dateText}>{formData.manufacture_date || 'Select a date'}</Text><CalendarIcon /></TouchableOpacity></View>
+                    <View style={styles.inputGroup}><Text style={styles.label}>Expiration Date</Text><TouchableOpacity style={styles.dateInput} placeholderTextColor="#9ca3af" onPress={() => { setCalendarField('expiration_date'); setIsCalendarOpen(true); }}><Text style={styles.dateText}>{formData.expiration_date || 'Select a date'}</Text><CalendarIcon /></TouchableOpacity></View>
                 </View>
                 <View style={styles.buttonContainer}>
                     <TouchableOpacity style={styles.button} onPress={onClose}><Text style={styles.buttonText}>Cancel</Text></TouchableOpacity>
@@ -87,7 +88,7 @@ const styles = StyleSheet.create({
     form: { flex: 1 },
     inputGroup: { marginBottom: 15 },
     label: { fontSize: 14, fontWeight: '600', color: '#4b5563', marginBottom: 8 },
-    input: { backgroundColor: '#f3f4f6', padding: 15, borderRadius: 10, fontSize: 16, borderWidth: 1, borderColor: '#e5e7eb' },
+    input: { backgroundColor: '#f3f4f6', padding: 15, borderRadius: 10, fontSize: 16, borderWidth: 1, borderColor: '#e5e7eb', color: '#111827' },
     dateInput: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f3f4f6', paddingHorizontal: 15, paddingVertical: 15, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb' },
     dateText: { fontSize: 16 },
     buttonContainer: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
