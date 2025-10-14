@@ -1,6 +1,6 @@
 // src/components/bns/AddChildModal.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Modal } from 'react-native';
 import { supabase } from '../../services/supabase';
 import { useNotification } from '../../context/NotificationContext';
 import { logActivity } from '../../services/activityLogger';
@@ -10,10 +10,12 @@ import QRCode from 'react-native-qrcode-svg';
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from '../../services/database';
 import NetInfo from '@react-native-community/netinfo';
+import CalendarPickerModal from './CalendarPickerModal';
 
 // --- ICONS & HELPER COMPONENTS ---
 const BackArrowIcon = () => <Svg width="24" height="24" viewBox="0 0 24 24" fill="none"><Path d="M15 18L9 12L15 6" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></Svg>;
 const ProfileIcon = () => <Svg width="100%" height="100%" viewBox="0 0 24 24" fill="#d1d5db"><Path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" /></Svg>;
+const CalendarIcon = () => <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"><Path d="M8 7V3M16 4V3M7 11H17M5 21H19C20.1046 21 21 20.1046 21 19V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7V19C3 20.1046 3.89543 21 5 21Z" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></Svg>;
 const Checkbox = ({ label, value, onValueChange }) => (
     <TouchableOpacity style={styles.checkboxContainer} onPress={() => onValueChange(!value)}>
         <View style={[styles.checkboxBase, value && styles.checkboxChecked]}>
@@ -30,13 +32,22 @@ const InputField = ({ label, value, onChangeText, ...props }) => (
 );
 
 // --- FORM STEP COMPONENTS ---
-const Step1 = ({ formData, handleChange }) => (
+const Step1 = ({ formData, handleChange, setIsCalendarOpen }) => (
     <>
         <Text style={styles.sectionTitle}>Child & Family Information</Text>
         <InputField label="Name of BHS"  placeholderTextColor="#9ca3af" value={formData.bhs_name || 'San Miguel'} onChangeText={t => handleChange('bhs_name', t)} />
         <InputField label="Name of Child" placeholder="Enter the name of child"  placeholderTextColor="#9ca3af" value={formData.child_name || ''} onChangeText={t => handleChange('child_name', t)} />
         <View style={styles.row}>
-            <InputField containerStyle={{flex:1}} label="Date of Birth"  placeholderTextColor="#9ca3af" placeholder="YYYY-MM-DD" value={formData.dob || ''} onChangeText={t => handleChange('dob', t)} />
+            <View style={{flex: 1}}>
+                <Text style={styles.label}>Date of Birth</Text>
+                {/* This line will now work correctly */}
+                <TouchableOpacity style={styles.dateInput} onPress={() => setIsCalendarOpen(true)}>
+                    <Text style={[styles.inputText, !formData.dob && styles.placeholderText]}>
+                        {formData.dob || 'YYYY-MM-DD'}
+                    </Text>
+                    <CalendarIcon />
+                </TouchableOpacity>
+            </View>
             <InputField containerStyle={{flex:1}} label="Sex"  placeholderTextColor="#9ca3af" placeholder="Male/Female" value={formData.sex || ''} onChangeText={t => handleChange('sex', t)} />
         </View>
         <InputField label="Place of Birth" placeholder="Enter place of birth" placeholderTextColor="#9ca3af" value={formData.place_of_birth || ''} onChangeText={t => handleChange('place_of_birth', t)} />
@@ -78,6 +89,7 @@ export default function AddChildModal({ onClose, onSave, mode = 'add', initialDa
     const [childId, setChildId] = useState(''); 
     const [loading, setLoading] = useState(false);
     const { addNotification } = useNotification();
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
     useEffect(() => {
         if (mode === 'edit' && initialData) {
@@ -184,6 +196,24 @@ export default function AddChildModal({ onClose, onSave, mode = 'add', initialDa
     };
 
     return (
+        <>
+            {/* 👇 Add this modal */}
+            <Modal
+                transparent={true}
+                visible={isCalendarOpen}
+                animationType="fade"
+                onRequestClose={() => setIsCalendarOpen(false)}
+            >
+                <CalendarPickerModal
+                    onClose={() => setIsCalendarOpen(false)}
+                    onDateSelect={(date) => {
+                        handleChange('dob', date);
+                        setIsCalendarOpen(false);
+                    }}
+                    disableWeekends={false}
+                />
+            </Modal>
+
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={onClose} style={styles.backButton}><BackArrowIcon /></TouchableOpacity>
@@ -197,7 +227,7 @@ export default function AddChildModal({ onClose, onSave, mode = 'add', initialDa
                     </View>
                     <Text style={styles.patientId}>Child ID: {childId}</Text>
                 </View>
-                {step === 1 && <Step1 formData={formData} handleChange={handleChange} />}
+                {step === 1 && <Step1 formData={formData} handleChange={handleChange} setIsCalendarOpen={setIsCalendarOpen} />}
                 {step === 2 && <Step2 formData={formData} handleChange={handleChange} />}
             </ScrollView>
             <View style={styles.footer}>
@@ -210,7 +240,8 @@ export default function AddChildModal({ onClose, onSave, mode = 'add', initialDa
                 )}
             </View>
         </SafeAreaView>
-    );
+    </>
+);
 }
 
 const styles = StyleSheet.create({
@@ -228,6 +259,24 @@ const styles = StyleSheet.create({
     inputContainer: { marginBottom: 15 },
     label: { fontSize: 14, color: '#6b7280', marginBottom: 5 },
     input: { backgroundColor: '#f9fafb', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db', fontSize: 16, marginBottom: 10, color: '#111827' },
+    dateInput: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#f9fafb',
+        padding: 12,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        marginBottom: 10,
+    },
+    inputText: {
+        fontSize: 16,
+        color: '#111827',
+    },
+    placeholderText: {
+        color: '#9ca3af',
+    },
     row: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
     inputRow: { flex: 1 },
     grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
