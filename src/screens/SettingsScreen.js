@@ -227,15 +227,8 @@ export default function SettingsScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity onPress={signOut} activeOpacity={0.8}>
-          <LinearGradient
-            colors={["#ef4444", "#b91c1c"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.logoutButton}
-          >
-            <Text style={styles.logoutButtonText}>Log Out</Text>
-          </LinearGradient>
+        <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
+          <Text style={styles.logoutButtonText}>Log Out</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -331,18 +324,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#f9fafb",
   },
   logoutButton: {
+    backgroundColor: '#fee2e2', // Light, soft red background
     paddingVertical: 15,
-    alignItems: "center",
+    alignItems: 'center',
     borderRadius: 12,
-    elevation: 3,
-    shadowColor: "#ef4444",
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: '#fca5a5', // A slightly darker red for the border
   },
   logoutButtonText: {
-    color: "#fff",
+    color: '#b91c1c', // Dark, strong red for the text
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: '700',
     letterSpacing: 0.5,
   },
 });
