@@ -24,8 +24,15 @@ const Calendar = ({ onDateSelect, disableWeekends }) => {
     // Generate a list of years for the picker
     const years = useMemo(() => {
         const currentYear = new Date().getFullYear();
-        return Array.from({ length: 20 }, (_, i) => currentYear - 10 + i); // Years from currentYear-10 to currentYear+9
+        const startYear = 1960; // 👈 Set the start year to 1960
+        const endYear = currentYear; // 👈 Set the end year to the current year
+
+        const length = endYear - startYear + 1;
+
+        // Create an array from 1960 to the current year, then reverse it
+        return Array.from({ length }, (_, i) => endYear - i);
     }, []);
+
 
     const calendarGrid = useMemo(() => {
         // ... (this logic remains the same)
