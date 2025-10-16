@@ -327,4 +327,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   shareButtonText: { color: "white", fontWeight: "bold", fontSize: 16 },
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> 1f494f496248e7952a6d144f537703de06ae7f48
