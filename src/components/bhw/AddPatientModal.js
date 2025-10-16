@@ -184,7 +184,88 @@ export default function AddPatientModal({ onClose, onSave, mode = 'add', initial
     }, [mode, initialData]);
 
     const handleSave = async () => {
-        // ... (handleSave logic remains the same)
+        // Basic validation
+        if (!formData.first_name || !formData.last_name) {
+            addNotification('First and Last name are required.', 'error');
+            return;
+        }
+        setLoading(true);
+
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // Parse the address into purok and street
+        let purok = formData.address || '';
+        let street = '';
+        if (formData.address?.includes(',')) {
+            const parts = formData.address.split(',');
+            purok = parts[0]?.trim();
+            street = parts.slice(1).join(',').trim();
+        }
+
+        // Separate the main table data from the medical history JSON
+        const patientRecord = {
+            patient_id: patientId, // The generated ID
+            first_name: formData.first_name,
+            last_name: formData.last_name,
+            middle_name: formData.middle_name,
+            age: parseInt(formData.age, 10) || null,
+            contact_no: formData.contact_no,
+            purok: purok, // <-- ADDED
+            street: street, // <-- ADDED
+            user_id: user?.id,
+            medical_history: formData // Store the entire form state in the JSONB field
+        };
+
+        const netInfo = await NetInfo.fetch();
+        const db = getDatabase();
+
+        try {
+            if (netInfo.isConnected) {
+                console.log("Online: Saving patient directly to Supabase...");
+                const { error } = await supabase.from('patients').insert([patientRecord]);
+                if (error) throw error;
+                addNotification('Patient record saved successfully.', 'success');
+
+            } else {
+                console.log("Offline: Saving patient locally...");
+                await db.withTransactionAsync(async () => {
+                    // Insert into local patients table
+                    const statement = await db.prepareAsync(
+                        // UPDATED: Added purok and street columns
+                        'INSERT INTO patients (patient_id, first_name, last_name, age, contact_no, purok, street, medical_history) VALUES (?, ?, ?, ?, ?, ?, ?, ?);'
+                    );
+                    await statement.executeAsync([
+                        patientRecord.patient_id,
+                        patientRecord.first_name,
+                        patientRecord.last_name,
+                        patientRecord.age,
+                        patientRecord.contact_no,
+                        patientRecord.purok, // <-- ADDED
+                        patientRecord.street, // <-- ADDED
+                        JSON.stringify(patientRecord.medical_history)
+                    ]);
+                    await statement.finalizeAsync();
+
+                    // Add to sync queue for later
+                    const syncStatement = await db.prepareAsync(
+                        'INSERT INTO sync_queue (action, table_name, payload) VALUES (?, ?, ?);'
+                    );
+                    await syncStatement.executeAsync(['create', 'patients', JSON.stringify(patientRecord)]);
+                    await syncStatement.finalizeAsync();
+                });
+                addNotification('Patient saved locally. Will sync when online.', 'success');
+            }
+
+            await logActivity('New Patient Added', `Patient: ${formData.first_name} ${formData.last_name}`);
+            onSave(); // This will trigger a re-fetch on the main screen
+            onClose();
+
+        } catch (error) {
+            console.error("Failed to save patient:", error);
+            addNotification(`Error: ${error.message}`, 'error');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
