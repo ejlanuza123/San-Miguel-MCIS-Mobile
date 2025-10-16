@@ -42,9 +42,41 @@ export const NotificationProvider = ({ children }) => {
         return () => supabase.removeChannel(channel);
     }, [user, fetchNotifications]);
     
+    // ADD THIS FUNCTION - Mark a single notification as read
+    const markAsRead = async (notification) => {
+        if (!user) return;
+        
+        console.log('Marking notification as read:', notification.id);
+        
+        const { error } = await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('id', notification.id)
+            .eq('user_id', user.id);
+
+        if (!error) {
+            // Update local state immediately
+            setNotifications(prev => 
+                prev.map(n => 
+                    n.id === notification.id 
+                        ? { ...n, is_read: true }
+                        : n
+                )
+            );
+            setUnreadCount(prev => Math.max(0, prev - 1));
+        } else {
+            console.error('Error marking notification as read:', error);
+        }
+    };
+
     const markAllRead = async () => {
         if (!user || unreadCount === 0) return;
-        const { error } = await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
+        const { error } = await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('user_id', user.id)
+            .eq('is_read', false);
+            
         if (!error) {
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
             setUnreadCount(0);
@@ -79,6 +111,7 @@ export const NotificationProvider = ({ children }) => {
     const value = {
         notifications,
         unreadCount,
+        markAsRead, // ADD THIS - for single notification read
         markAllRead,
         deleteAll,
         deleteOne,

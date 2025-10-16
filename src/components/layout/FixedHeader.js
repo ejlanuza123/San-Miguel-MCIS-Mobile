@@ -20,6 +20,15 @@ const BellIcon = () => (
   </Svg>
 );
 
+const ClearIcon = () => (
+  <Svg width={20} height={20} viewBox="0 0 24 24">
+    <Path
+      fill="#9e9e9e"
+      d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+    />
+  </Svg>
+);
+
 const SettingsIcon = () => (
   <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
     <Path
@@ -122,7 +131,7 @@ export default function FixedHeader() {
   const route = useRoute();
   const { searchTerm, setSearchTerm, placeholder, isFilterOpen, setIsFilterOpen, filterOptions } = useHeader();
 
-  const { notifications, unreadCount, markAllRead, deleteAll, deleteOne } = useNotification();
+  const { notifications, unreadCount, markAllRead, deleteAll, deleteOne, markAsRead } = useNotification();
 
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
 
@@ -188,23 +197,34 @@ export default function FixedHeader() {
 
         {!isUserRole && (
           <View style={styles.searchContainer}>
-            <SearchIcon />
-            <TextInput
-              placeholder={placeholder}
-              placeholderTextColor="#9ca3af"
-              style={styles.searchInput}
-              value={searchTerm}
-              onChangeText={setSearchTerm}
-            />
-            {showQrIcon && (
-              <TouchableOpacity onPress={() => navigation.navigate('QRScanner')}>
-                <QRScanIcon />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity onPress={() => setIsFilterOpen(true)}>
-              <FilterIcon />
+          <SearchIcon />
+          <TextInput
+            placeholder={placeholder}
+            placeholderTextColor="#9ca3af"
+            style={styles.searchInput}
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+          />
+          {/* Add Clear Button when there's text */}
+          {searchTerm.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchTerm('')}>
+              <Svg width={20} height={20} viewBox="0 0 24 24">
+                <Path
+                  fill="#9e9e9e"
+                  d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                />
+              </Svg>
             </TouchableOpacity>
-          </View>
+          )}
+          {showQrIcon && (
+            <TouchableOpacity onPress={() => navigation.navigate('QRScanner')}>
+              <QRScanIcon />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => setIsFilterOpen(true)}>
+            <FilterIcon />
+          </TouchableOpacity>
+        </View>
         )}
       </SafeAreaView>
 
@@ -215,9 +235,7 @@ export default function FixedHeader() {
         onMarkAllRead={markAllRead}
         onDeleteAll={deleteAll}
         onDeleteOne={deleteOne}
-        onNotificationPress={(item) => {
-          setIsNotifModalOpen(false);
-        }}
+        onNotificationPress={markAsRead} // Change this line
       />
 
       <FilterDropdown isVisible={isFilterOpen} onClose={() => setIsFilterOpen(false)} options={filterOptions} />
