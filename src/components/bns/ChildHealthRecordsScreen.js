@@ -109,57 +109,115 @@ export default function ChildHealthRecordsScreen({ route, navigation }) {
 
         try {
             const netInfo = await NetInfo.fetch();
+            
             if (netInfo.isConnected) {
-                console.log("Online: Fetching child records from Supabase and caching...");
+                // ONLINE: Fetch from Supabase first
+                console.log("Online - fetching child records from Supabase");
                 const { data: supabaseData, error } = await supabase.from('child_records').select('*').order('last_name');
 
                 if (error) {
+                    console.error("Supabase error:", error);
                     addNotification('Could not fetch latest child records.', 'warning');
+                    // Fall back to local data
+                    await loadLocalData(db);
                 } else if (supabaseData) {
-                    await db.withTransactionAsync(async () => {
+                    // Update UI with fresh Supabase data immediately
+                    let displayData = supabaseData;
+                    
+                    // Apply filters to Supabase data
+                    if (activeFilter !== 'All') {
+                        displayData = displayData.filter(child => child.nutrition_status === activeFilter);
+                    }
+                    if (searchTerm) {
+                        const lowercasedQuery = searchTerm.toLowerCase();
+                        displayData = displayData.filter(child => {
+                            const fullName = `${child.first_name || ''} ${child.last_name || ''}`.toLowerCase();
+                            return fullName.includes(lowercasedQuery);
+                        });
+                    }
+                    
+                    setChildRecords(displayData);
+                    setTotalRecords(displayData.length);
+                    
+                    // Update local cache in background
+                    try {
+                        await db.execAsync('DELETE FROM child_records;');
+                        
                         const stmt = await db.prepareAsync(`
                             INSERT OR REPLACE INTO child_records 
                             (child_id, first_name, last_name, dob, sex, mother_name, nutrition_status, health_details)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-                            `);
-
-                            await Promise.all(supabaseData.map(child => {
+                        `);
+                        
+                        for (const child of supabaseData) {
                             const details = typeof child.health_details === 'string'
                                 ? child.health_details
-                                : JSON.stringify(child.health_details);
-                            return stmt.executeAsync([
-                            child.child_id,
-                            child.first_name,
-                            child.last_name,
-                            child.dob,
-                            child.sex,
-                            child.mother_name,
-                            child.nutrition_status,
-                            details
+                                : JSON.stringify(child.health_details || []);
+                                
+                            await stmt.executeAsync([
+                                child.child_id,
+                                child.first_name,
+                                child.last_name,
+                                child.dob,
+                                child.sex,
+                                child.mother_name,
+                                child.nutrition_status,
+                                details
                             ]);
-                        }));
+                        }
                         await stmt.finalizeAsync();
-                    });
-                    console.log("Child records cached successfully.");
+                    } catch (syncError) {
+                        console.warn("Cache update warning:", syncError);
+                    }
                 }
+            } else {
+                // OFFLINE: Use local data only
+                console.log("Offline - using local cache for child records");
+                await loadLocalData(db);
             }
-
-            // Always read from local DB for UI
-            const localData = await db.getAllAsync('SELECT * FROM child_records ORDER BY last_name ASC;');
-            setChildRecords(localData);
-            setTotalRecords(localData.length);
-
         } catch (e) {
             console.error("Error loading child records:", e);
             addNotification('An error occurred loading child data.', 'error');
+            // Try to load local data as fallback
+            try {
+                await loadLocalData(getDatabase());
+            } catch (fallbackError) {
+                console.error("Even local data failed:", fallbackError);
+            }
         } finally {
             setLoading(false);
         }
-    }, [addNotification]);
+    }, [addNotification, searchTerm, activeFilter]);
 
+    // Add this helper function for local data loading
+    const loadLocalData = async (db) => {
+        let localData = await db.getAllAsync("SELECT * FROM child_records ORDER BY last_name ASC;");
+
+        // Apply filters to local data
+        if (activeFilter !== 'All') {
+            localData = localData.filter(child => child.nutrition_status === activeFilter);
+        }
+        if (searchTerm) {
+            const lowercasedQuery = searchTerm.toLowerCase();
+            localData = localData.filter(child => {
+                const fullName = `${child.first_name || ''} ${child.last_name || ''}`.toLowerCase();
+                return fullName.includes(lowercasedQuery);
+            });
+        }
+        
+        setChildRecords(localData);
+        setTotalRecords(localData.length);
+    };
+
+    // Replace the useEffect with debouncing
     useEffect(() => {
-        fetchChildRecords();
-    }, [fetchChildRecords, activeFilter, searchTerm]);
+        const timeoutId = setTimeout(() => {
+            fetchChildRecords();
+        }, 300);
+        
+        return () => clearTimeout(timeoutId);
+    }, [fetchChildRecords]);
+
     
     useEffect(() => {
         const scannedId = route.params?.scannedPatientId;
@@ -180,7 +238,7 @@ export default function ChildHealthRecordsScreen({ route, navigation }) {
                     // OFFLINE: Fetch from the local SQLite database
                     const db = getDatabase();
                     try {
-                        const result = await db.getFirstAsync('SELECT * FROM child_records WHERE child_id = ?;', [scannedId]);
+                        const result = await db.getFirstAsync("SELECT * FROM child_records WHERE child_id = ?;", [scannedId]);
                         child = result;
                     } catch (dbError) {
                         error = dbError;

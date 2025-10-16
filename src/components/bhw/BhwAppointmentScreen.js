@@ -87,8 +87,10 @@ export default function BhwAppointmentScreen() {
 
         try {
             const netInfo = await NetInfo.fetch();
+            
             if (netInfo.isConnected) {
-                console.log("Online: Fetching BHW appointments and caching...");
+                // ONLINE: Fetch from Supabase first, then update local cache
+                console.log("Online - fetching from Supabase");
                 const { data: supabaseData, error } = await supabase
                     .from('appointments')
                     .select('*, patients(*)')
@@ -96,46 +98,98 @@ export default function BhwAppointmentScreen() {
                     .order('date', { ascending: false });
 
                 if (error) {
+                    console.error("Supabase error:", error);
                     addNotification('Could not fetch latest appointments.', 'warning');
+                    // Fall back to local data
+                    await loadLocalData(db);
                 } else if (supabaseData) {
-                    await db.withTransactionAsync(async () => {
-                        // Clear old appointments to avoid stale data
-                        await db.execAsync('DELETE FROM appointments WHERE patient_display_id LIKE "P-%";');
+                    // Update UI with fresh Supabase data immediately
+                    let displayData = supabaseData;
+                    
+                    // Apply filters to Supabase data
+                    if (activeFilter !== 'All') {
+                        displayData = displayData.filter(app => app.status === activeFilter);
+                    }
+                    if (searchTerm) {
+                        const lowercasedQuery = searchTerm.toLowerCase();
+                        displayData = displayData.filter(app => 
+                            (app.patient_name || '').toLowerCase().includes(lowercasedQuery)
+                        );
+                    }
+                    
+                    setAllAppointments(displayData);
+                    setTotalRecords(displayData.length);
+                    
+                    // Update local cache in background
+                    try {
+                        await db.execAsync("DELETE FROM appointments WHERE patient_display_id LIKE 'P-%';");
                         
                         const stmt = await db.prepareAsync(
-                        'INSERT INTO appointments (patient_display_id, patient_name, reason, date, time, status) VALUES (?, ?, ?, ?, ?, ?);'
+                            "INSERT OR REPLACE INTO appointments (id, patient_display_id, patient_name, reason, date, time, status) VALUES (?, ?, ?, ?, ?, ?, ?);"
                         );
-                        await Promise.all(supabaseData.map(app => 
-                        stmt.executeAsync([
-                            app.patient_display_id,
-                            app.patient_name,
-                            app.reason,
-                            app.date,
-                            app.time,
-                            app.status
-                        ])
-                        ));
+                        
+                        for (const app of supabaseData) {
+                            await stmt.executeAsync([
+                                app.id,
+                                app.patient_display_id,
+                                app.patient_name,
+                                app.reason,
+                                app.date,
+                                app.time,
+                                app.status
+                            ]);
+                        }
                         await stmt.finalizeAsync();
-                    });
+                    } catch (syncError) {
+                        console.warn("Cache update warning:", syncError);
+                    }
                 }
+            } else {
+                // OFFLINE: Use local data only
+                console.log("Offline - using local cache");
+                await loadLocalData(db);
             }
-
-            // Always read from the local DB to populate the UI
-            const localData = await db.getAllAsync('SELECT * FROM appointments WHERE patient_display_id LIKE "P-%" ORDER BY date DESC;');
-            setAllAppointments(localData);
-            setTotalRecords(localData.length);
-
         } catch (e) {
             console.error("Error loading BHW appointments:", e);
             addNotification('An error occurred loading appointment data.', 'error');
+            // Try to load local data as fallback
+            try {
+                await loadLocalData(getDatabase());
+            } catch (fallbackError) {
+                console.error("Even local data failed:", fallbackError);
+            }
         } finally {
             setLoading(false);
         }
-    }, [addNotification]);
+    }, [addNotification, searchTerm, activeFilter]);
 
+    // Add this helper function for local data loading
+    const loadLocalData = async (db) => {
+        let localData = await db.getAllAsync("SELECT * FROM appointments WHERE patient_display_id LIKE 'P-%' ORDER BY date DESC;");
+
+        // Apply filters to local data
+        if (activeFilter !== 'All') {
+            localData = localData.filter(app => app.status === activeFilter);
+        }
+        if (searchTerm) {
+            const lowercasedQuery = searchTerm.toLowerCase();
+            localData = localData.filter(app => 
+                (app.patient_name || '').toLowerCase().includes(lowercasedQuery)
+            );
+        }
+        
+        setAllAppointments(localData);
+        setTotalRecords(localData.length);
+    };
+
+    // Fix the useEffect with proper debouncing
     useEffect(() => {
-        fetchAppointments();
-    }, [fetchAppointments, activeFilter, searchTerm]);
+        const timeoutId = setTimeout(() => {
+            fetchAppointments();
+        }, 300);
+        
+        return () => clearTimeout(timeoutId);
+    }, [fetchAppointments]);
 
     const handleViewAppointment = (item) => {
         setSelectedAppointment(item);

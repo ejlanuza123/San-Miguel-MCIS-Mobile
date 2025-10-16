@@ -111,8 +111,10 @@ export default function BnsAppointmentScreen() {
 
         try {
             const netInfo = await NetInfo.fetch();
+            
             if (netInfo.isConnected) {
-                console.log("Online: Fetching BNS appointments and caching...");
+                // ONLINE: Fetch from Supabase first
+                console.log("Online - fetching BNS appointments from Supabase");
                 const { data: supabaseData, error } = await supabase
                     .from('appointments')
                     .select('*')
@@ -120,45 +122,98 @@ export default function BnsAppointmentScreen() {
                     .order('date', { ascending: false });
 
                 if (error) {
+                    console.error("Supabase error:", error);
                     addNotification('Could not fetch latest BNS appointments.', 'warning');
+                    // Fall back to local data
+                    await loadLocalData(db);
                 } else if (supabaseData) {
-                    await db.withTransactionAsync(async () => {
-                        await db.execAsync('DELETE FROM appointments WHERE patient_display_id LIKE "C-%";');
-                        const stmt = await db.prepareAsync(
-                            'INSERT OR REPLACE INTO appointments (id, patient_display_id, patient_name, reason, date, time, status) VALUES (?, ?, ?, ?, ?, ?, ?);'
+                    // Update UI with fresh Supabase data immediately
+                    let displayData = supabaseData;
+                    
+                    // Apply filters to Supabase data
+                    if (activeFilter !== 'All') {
+                        displayData = displayData.filter(app => app.status === activeFilter);
+                    }
+                    if (searchTerm) {
+                        const lowercasedQuery = searchTerm.toLowerCase();
+                        displayData = displayData.filter(app => 
+                            (app.patient_name || '').toLowerCase().includes(lowercasedQuery)
                         );
-                        await Promise.all(supabaseData.map(app => 
-                            stmt.executeAsync([
-                                null, // ← SQLite will auto-generate integer ID
+                    }
+                    
+                    setAppointments(displayData);
+                    setTotalRecords(displayData.length);
+                    
+                    // Update local cache in background
+                    try {
+                        await db.execAsync("DELETE FROM appointments WHERE patient_display_id LIKE 'C-%';");
+                        
+                        const stmt = await db.prepareAsync(
+                            "INSERT OR REPLACE INTO appointments (id, patient_display_id, patient_name, reason, date, time, status) VALUES (?, ?, ?, ?, ?, ?, ?);"
+                        );
+                        
+                        for (const app of supabaseData) {
+                            await stmt.executeAsync([
+                                app.id,
                                 app.patient_display_id,
                                 app.patient_name,
                                 app.reason,
                                 app.date,
                                 app.time,
                                 app.status
-                            ])
-                        ));
+                            ]);
+                        }
                         await stmt.finalizeAsync();
-                    });
+                    } catch (syncError) {
+                        console.warn("Cache update warning:", syncError);
+                    }
                 }
+            } else {
+                // OFFLINE: Use local data only
+                console.log("Offline - using local cache for BNS appointments");
+                await loadLocalData(db);
             }
-
-            const localData = await db.getAllAsync('SELECT * FROM appointments WHERE patient_display_id LIKE "C-%" ORDER BY date DESC;');
-            setAppointments(localData);
-            setTotalRecords(localData.length);
-
         } catch (e) {
             console.error("Error loading BNS appointments:", e);
             addNotification('An error occurred loading appointment data.', 'error');
+            // Try to load local data as fallback
+            try {
+                await loadLocalData(getDatabase());
+            } catch (fallbackError) {
+                console.error("Even local data failed:", fallbackError);
+            }
         } finally {
             setLoading(false);
         }
-    }, [addNotification]);
+    }, [addNotification, searchTerm, activeFilter]);
 
-    // Add this useEffect to trigger the fetch
+    // Add this helper function for local data loading
+    const loadLocalData = async (db) => {
+        let localData = await db.getAllAsync('SELECT * FROM appointments WHERE patient_display_id LIKE "C-%" ORDER BY date DESC;');
+
+        // Apply filters to local data
+        if (activeFilter !== 'All') {
+            localData = localData.filter(app => app.status === activeFilter);
+        }
+        if (searchTerm) {
+            const lowercasedQuery = searchTerm.toLowerCase();
+            localData = localData.filter(app => 
+                (app.patient_name || '').toLowerCase().includes(lowercasedQuery)
+            );
+        }
+        
+        setAppointments(localData);
+        setTotalRecords(localData.length);
+    };
+
+    // Replace the useEffect with debouncing
     useEffect(() => {
-        fetchAppointments();
-    }, [fetchAppointments, activeFilter, searchTerm])
+        const timeoutId = setTimeout(() => {
+            fetchAppointments();
+        }, 300);
+        
+        return () => clearTimeout(timeoutId);
+    }, [fetchAppointments]);
 
     const totalPages = Math.ceil(totalRecords / itemsPerPage);
 

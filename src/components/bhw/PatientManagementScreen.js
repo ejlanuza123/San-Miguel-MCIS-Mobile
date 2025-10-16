@@ -135,65 +135,119 @@ export default function PatientManagementScreen({ route, navigation }) {
         const db = getDatabase();
 
         try {
-            // STEP 1 — Immediately show cached data
-            const localData = await db.getAllAsync('SELECT * FROM patients ORDER BY last_name ASC;');
-            setAllPatients(localData);
-            setTotalRecords(localData.length);
-            setLoading(false); // show UI now
-
-            // STEP 2 — Check if online, then sync in background
             const netInfo = await NetInfo.fetch();
+            
             if (netInfo.isConnected) {
-            console.log("Online: Fetching from Supabase...");
-            const { data: supabaseData, error: supabaseError } = await supabase
-                .from('patients')
-                .select('*')
-                .order('last_name', { ascending: true });
+                // ONLINE: Fetch from Supabase first
+                console.log("Online - fetching from Supabase");
+                const { data: supabaseData, error: supabaseError } = await supabase
+                    .from('patients')
+                    .select('*')
+                    .order('last_name', { ascending: true });
 
-            if (!supabaseError && supabaseData) {
-                await db.withTransactionAsync(async () => {
-                const stmt = await db.prepareAsync(
-                    'INSERT OR REPLACE INTO patients (id, patient_id, first_name, last_name, age, risk_level, medical_history) VALUES (?, ?, ?, ?, ?, ?, ?);'
-                );
-                await Promise.all(
-                    supabaseData.map((patient) => {
-                        const historyString =
-                        typeof patient.medical_history === "string"
-                            ? patient.medical_history
-                            : JSON.stringify(patient.medical_history);
+                if (supabaseError) {
+                    console.error("Supabase error:", supabaseError);
+                    addNotification('Could not fetch latest patient data.', 'warning');
+                    // Fall back to local data
+                    await loadLocalData(db);
+                } else if (supabaseData) {
+                    // Update UI with fresh Supabase data immediately
+                    let displayData = supabaseData;
+                    
+                    // Apply filters to Supabase data
+                    if (activeFilter !== 'All') {
+                        displayData = displayData.filter(patient => patient.risk_level === activeFilter);
+                    }
+                    if (searchTerm) {
+                        const lowercasedQuery = searchTerm.toLowerCase();
+                        displayData = displayData.filter(patient => {
+                            const fullName = `${patient.first_name || ''} ${patient.last_name || ''}`.toLowerCase();
+                            return fullName.includes(lowercasedQuery);
+                        });
+                    }
+                    
+                    setAllPatients(displayData);
+                    setTotalRecords(displayData.length);
+                    
+                    // Update local cache in background
+                    try {
+                        await db.execAsync('DELETE FROM patients;');
+                        
+                        const stmt = await db.prepareAsync(
+                            'INSERT OR REPLACE INTO patients (id, patient_id, first_name, last_name, age, risk_level, contact_no, purok, street, medical_history, is_synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);'
+                        );
+                        
+                        for (const patient of supabaseData) {
+                            const historyString = typeof patient.medical_history === 'string' 
+                                ? patient.medical_history 
+                                : JSON.stringify(patient.medical_history || []);
 
-                        const id = Number(patient.id) || null; // Cast to integer
-                        const age = Number(patient.age) || 0; // Default to 0 if null
-
-                        return stmt.executeAsync([
-                        id,
-                        patient.patient_id,
-                        patient.first_name,
-                        patient.last_name,
-                        age,
-                        patient.risk_level,
-                        historyString,
-                        ]);
-                    })
-                    );
-                await stmt.finalizeAsync();
-                });
-
-                // STEP 3 — Update UI after sync (optional)
-                const updatedLocal = await db.getAllAsync('SELECT * FROM patients ORDER BY last_name ASC;');
-                setAllPatients(updatedLocal);
-                setTotalRecords(updatedLocal.length);
-            }
+                            await stmt.executeAsync([
+                                patient.id, 
+                                patient.patient_id, 
+                                patient.first_name, 
+                                patient.last_name, 
+                                patient.age, 
+                                patient.risk_level, 
+                                patient.contact_no, 
+                                patient.purok, 
+                                patient.street, 
+                                historyString, 
+                                1 // is_synced = true
+                            ]);
+                        }
+                        await stmt.finalizeAsync();
+                    } catch (syncError) {
+                        console.warn("Cache update warning:", syncError);
+                    }
+                }
+            } else {
+                // OFFLINE: Use local data only
+                console.log("Offline - using local cache");
+                await loadLocalData(db);
             }
         } catch (e) {
             console.error("Error loading patients:", e);
             addNotification('An error occurred while loading data.', 'error');
+            // Try to load local data as fallback
+            try {
+                await loadLocalData(getDatabase());
+            } catch (fallbackError) {
+                console.error("Even local data failed:", fallbackError);
+            }
+        } finally {
+            setLoading(false);
         }
-    }, [addNotification]);
+    }, [addNotification, searchTerm, activeFilter]);
 
+    // Add this helper function for local data loading
+    const loadLocalData = async (db) => {
+        let localData = await db.getAllAsync('SELECT * FROM patients ORDER BY last_name ASC;');
+
+        // Apply filters to local data
+        if (activeFilter !== 'All') {
+            localData = localData.filter(patient => patient.risk_level === activeFilter);
+        }
+        if (searchTerm) {
+            const lowercasedQuery = searchTerm.toLowerCase();
+            localData = localData.filter(patient => {
+                const fullName = `${patient.first_name || ''} ${patient.last_name || ''}`.toLowerCase();
+                return fullName.includes(lowercasedQuery);
+            });
+        }
+        
+        setAllPatients(localData);
+        setTotalRecords(localData.length);
+    };
+
+    // Fix the useEffect with proper debouncing
     useEffect(() => {
-        fetchPatients();
-    }, [fetchPatients, searchTerm, activeFilter, currentPage]);
+        const timeoutId = setTimeout(() => {
+            fetchPatients();
+        }, 300);
+        
+        return () => clearTimeout(timeoutId);
+    }, [fetchPatients]);
 
 
     
