@@ -19,18 +19,21 @@ export const initDatabase = async () => {
     // Initialize tables
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS patients (
-        id INTEGER PRIMARY KEY NOT NULL, 
+        id TEXT PRIMARY KEY, 
         patient_id TEXT UNIQUE, 
         first_name TEXT, 
         last_name TEXT, 
         age INTEGER, 
         risk_level TEXT,
+        contact_no TEXT,
+        purok TEXT,          
+        street TEXT,         
         medical_history TEXT,
         is_synced INTEGER DEFAULT 0 
       );
       
       CREATE TABLE IF NOT EXISTS appointments (
-        id INTEGER PRIMARY KEY NOT NULL, 
+        id TEXT PRIMARY KEY NOT NULL, 
         patient_display_id TEXT, 
         patient_name TEXT, 
         reason TEXT, 
@@ -40,8 +43,7 @@ export const initDatabase = async () => {
       );
 
       CREATE TABLE IF NOT EXISTS child_records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        supabase_id TEXT UNIQUE, -- store UUID here instead
+        id TEXT PRIMARY KEY, 
         child_id TEXT UNIQUE,
         first_name TEXT,
         last_name TEXT,
@@ -50,10 +52,10 @@ export const initDatabase = async () => {
         mother_name TEXT,
         nutrition_status TEXT,
         health_details TEXT
-    );
+      );
       
       CREATE TABLE IF NOT EXISTS sync_queue (
-        id INTEGER PRIMARY KEY AUTOINCREMENT\,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         action TEXT NOT NULL,
         table_name TEXT NOT NULL,
         payload TEXT NOT NULL,
