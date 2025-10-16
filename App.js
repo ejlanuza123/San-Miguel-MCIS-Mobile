@@ -2,7 +2,7 @@
 import "react-native-gesture-handler";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { View } from "react-native";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,  useCallback } from "react";
 import { NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
@@ -39,28 +39,51 @@ const linking = {
 function RootNavigator() {
   const { user, loading, isOnboardingComplete } = useAuth();
   const navigationRef = useNavigationContainerRef();
+  const [isNavigationReady, setIsNavigationReady] = useState(false);
+
+  // Handle navigation reset when user logs out
+  useEffect(() => {
+    if (isNavigationReady && !loading && !user) {
+      // Reset navigation stack to show auth flow
+      navigationRef.reset({
+        index: 0,
+        routes: [
+          { 
+            name: isOnboardingComplete ? 'Auth' : 'Splash' 
+          }
+        ],
+      });
+    }
+  }, [user, loading, isOnboardingComplete, isNavigationReady]);
+
+  // Handle navigation state change to know when navigator is ready
+  const onNavigationReady = useCallback(() => {
+    setIsNavigationReady(true);
+  }, []);
 
   if (loading) {
     return <SplashScreen />;
   }
 
   return (
-    <NavigationContainer ref={navigationRef} linking={linking}>
+    <NavigationContainer 
+      ref={navigationRef}
+      onReady={onNavigationReady}
+      linking={linking}
+    >
       <Stack.Navigator
         screenOptions={{ headerShown: false }}
         initialRouteName={
           user 
             ? "App" 
             : isOnboardingComplete 
-              ? "Auth"  // Go directly to Auth (role selection) if onboarding is complete
-              : "Splash" // Show onboarding flow if first time
+              ? "Auth"
+              : "Splash"
         }
       >
         {user ? (
-          // If user is logged in, they only see the main app navigator
           <Stack.Screen name="App" component={AppNavigator} />
         ) : (
-          // If no user, show appropriate flow based on onboarding status
           <>
             <Stack.Screen name="Splash" component={SplashScreen} />
             <Stack.Screen name="GetStarted" component={GetStartedScreen} />
