@@ -150,8 +150,5 @@ const styles = StyleSheet.create({
   cardDate: { fontSize: 12, color: "#9ca3af" },
   viewText: { fontSize: 14, fontWeight: "bold", color: "#3b82f6" },
   emptyText: { textAlign: "center", marginTop: 50, color: "#6b7280" },
-<<<<<<< HEAD
 });
-=======
-});
->>>>>>> 1f494f496248e7952a6d144f537703de06ae7f48
+
