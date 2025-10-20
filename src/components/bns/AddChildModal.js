@@ -181,35 +181,116 @@ export default function AddChildModal({ onClose, onSave, mode = 'add', initialDa
                 }
             }
 
+            // Calculate BMI if we have weight and height
+            const weight = formData.weight_kg ? parseFloat(formData.weight_kg) : null;
+            const height = formData.height_cm ? parseFloat(formData.height_cm) : null;
+            let bmi = null;
+            if (weight && height && height > 0) {
+                const heightInMeters = height / 100;
+                bmi = weight / (heightInMeters * heightInMeters);
+            }
+
             const childRecord = {
                 child_id: finalChildId,
                 first_name: firstName,
                 last_name: lastNameParts.join(' ') || '',
                 dob: formData.dob,
                 sex: formData.sex,
+                place_of_birth: formData.place_of_birth || '',
                 mother_name: formData.mother_name,
-                nutrition_status: 'H', // Default status
+                father_name: formData.father_name || '',
+                guardian_name: formData.guardian_name || '',
+                nhts_no: formData.nhts_no || '',
+                philhealth_no: formData.philhealth_no || '',
+                weight_kg: weight,
+                height_cm: height,
+                bmi: bmi,
+                nutrition_status: 'H',
                 health_details: formData,
-                user_id: user_id, // Will be null when offline
             };
 
             if (netInfo.isConnected) {
                 // --- ONLINE LOGIC ---
                 console.log("Online: Saving child record directly to Supabase...");
-                const { error } = await supabase.from('child_records').insert([childRecord]);
-                if (error) throw error;
-                addNotification('New child record added successfully.', 'success');
+                try {
+                    const { error } = await supabase.from('child_records').insert([childRecord]);
+                    if (error) throw error;
+                    addNotification('New child record added successfully.', 'success');
+                    try {
+                            await logActivity('Add Child', `ID: ${finalChildId}`);
+                        } catch (logError) {
+                            console.log('Activity logging failed:', logError);
+                            // Don't fail the entire save if logging fails
+                        }
+                } catch (onlineError) {
+                    console.error("Online save failed, falling back to offline:", onlineError);
+                    
+                    // If online save fails, fall back to offline mode
+                    console.log("Falling back to offline save...");
+                    await db.withTransactionAsync(async () => {
+                        const statement = await db.prepareAsync(
+                        `INSERT INTO child_records (
+                            child_id, first_name, last_name, dob, sex, place_of_birth, 
+                            mother_name, father_name, guardian_name, nhts_no, philhealth_no,
+                            weight_kg, height_cm, bmi, nutrition_status, health_details
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`
+                        );
+                        await statement.executeAsync([
+                            childRecord.child_id, 
+                            childRecord.first_name, 
+                            childRecord.last_name, 
+                            childRecord.dob,
+                            childRecord.sex,
+                            childRecord.place_of_birth,
+                            childRecord.mother_name,
+                            childRecord.father_name,
+                            childRecord.guardian_name,
+                            childRecord.nhts_no,
+                            childRecord.philhealth_no,
+                            childRecord.weight_kg,
+                            childRecord.height_cm,
+                            childRecord.bmi,
+                            childRecord.nutrition_status,
+                            JSON.stringify(childRecord.health_details)
+                        ]);
+                        await statement.finalizeAsync();
+
+                        const syncStatement = await db.prepareAsync(
+                            'INSERT INTO sync_queue (action, table_name, payload) VALUES (?, ?, ?);'
+                        );
+                        await syncStatement.executeAsync(['create', 'child_records', JSON.stringify(childRecord)]);
+                        await syncStatement.finalizeAsync();
+                    });
+                    addNotification('Child record saved locally. Will sync when online.', 'success');
+                }
 
             } else {
                 // --- OFFLINE LOGIC ---
                 console.log("Offline: Saving child record locally...");
                 await db.withTransactionAsync(async () => {
                     const statement = await db.prepareAsync(
-                        'INSERT INTO child_records (child_id, first_name, last_name, dob, sex, mother_name, nutrition_status, health_details) VALUES (?, ?, ?, ?, ?, ?, ?, ?);'
+                    `INSERT INTO child_records (
+                        child_id, first_name, last_name, dob, sex, place_of_birth, 
+                        mother_name, father_name, guardian_name, nhts_no, philhealth_no,
+                        weight_kg, height_cm, bmi, nutrition_status, health_details
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`
                     );
                     await statement.executeAsync([
-                        childRecord.child_id, childRecord.first_name, childRecord.last_name, childRecord.dob,
-                        childRecord.sex, childRecord.mother_name, childRecord.nutrition_status,
+                        childRecord.child_id, 
+                        childRecord.first_name, 
+                        childRecord.last_name, 
+                        childRecord.dob,
+                        childRecord.sex,
+                        childRecord.place_of_birth,
+                        childRecord.mother_name,
+                        childRecord.father_name,
+                        childRecord.guardian_name,
+                        childRecord.nhts_no,
+                        childRecord.philhealth_no,
+                        childRecord.weight_kg,
+                        childRecord.height_cm,
+                        childRecord.bmi,
+                        childRecord.nutrition_status,
                         JSON.stringify(childRecord.health_details)
                     ]);
                     await statement.finalizeAsync();
@@ -223,20 +304,18 @@ export default function AddChildModal({ onClose, onSave, mode = 'add', initialDa
                 addNotification('Child record saved locally. Will sync when online.', 'success');
             }
             
-            // Log activity - make it offline safe
-            try {
-                await logActivity('Add Child', `ID: ${finalChildId}`);
-            } catch (logError) {
-                console.log('Activity logging failed:', logError);
-                // Don't fail the entire save if logging fails
-            }
-            
             onSave();
             onClose();
 
         } catch (error) {
             console.error("Failed to save child record:", error);
-            addNotification(`Error: ${error.message}`, 'error');
+            
+            // More specific error messages
+            if (error.message.includes('Network request failed')) {
+                addNotification('Network error. Please check your internet connection.', 'error');
+            } else {
+                addNotification(`Error: ${error.message}`, 'error');
+            }
         } finally {
             setLoading(false);
         }
