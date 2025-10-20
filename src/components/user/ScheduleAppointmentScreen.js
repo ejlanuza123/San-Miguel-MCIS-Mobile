@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, ActivityIndicat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../context/AuthContext';
-import CalendarPickerModal from '../../components/bhw/CalendarPickerModal';
+import CalendarPickerModal from '../common/CalendarPickerModal';
 import TimePickerModal from '../../components/common/TimePickerModal';
 import { Picker } from '@react-native-picker/picker';
 import Svg, { Path } from 'react-native-svg';

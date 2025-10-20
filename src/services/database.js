@@ -24,7 +24,7 @@ export const initDatabase = async () => {
         first_name TEXT, 
         last_name TEXT, 
         age INTEGER, 
-        risk_level TEXT,
+        risk_level TEXT DEFAULT 'NORMAL',
         contact_no TEXT,
         purok TEXT,          
         street TEXT,         
@@ -60,6 +60,14 @@ export const initDatabase = async () => {
         table_name TEXT NOT NULL,
         payload TEXT NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS sync_notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        message TEXT NOT NULL,
+        type TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        is_read INTEGER DEFAULT 0
       );
     `);
 

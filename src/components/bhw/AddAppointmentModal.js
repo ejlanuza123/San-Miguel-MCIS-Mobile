@@ -11,7 +11,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { logActivity } from '../../services/activityLogger';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
-import CalendarPickerModal from './CalendarPickerModal';
+import CalendarPickerModal from '../common/CalendarPickerModal';
 import TimePickerModal from '../common/TimePickerModal';
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from '../../services/database';
@@ -41,9 +41,24 @@ export default function AddAppointmentModal({ onClose, onSave }) {
 
     useEffect(() => {
         const fetchAllPatients = async () => {
-            const { data, error } = await supabase.from('patients').select('id, patient_id, first_name, last_name');
-            if (error) console.error("Error fetching patients:", error);
-            else setAllPatients(data || []);
+            const netInfo = await NetInfo.fetch();
+            const db = getDatabase();
+            
+            if (netInfo.isConnected) {
+                // Online: Fetch from Supabase
+                const { data, error } = await supabase.from('patients').select('id, patient_id, first_name, last_name');
+                if (error) console.error("Error fetching patients:", error);
+                else setAllPatients(data || []);
+            } else {
+                // Offline: Fetch from local database
+                try {
+                    const localPatients = await db.getAllAsync('SELECT id, patient_id, first_name, last_name FROM patients ORDER BY last_name ASC');
+                    setAllPatients(localPatients || []);
+                } catch (error) {
+                    console.error("Error fetching local patients:", error);
+                    setAllPatients([]);
+                }
+            }
         };
         fetchAllPatients();
     }, []);
@@ -85,7 +100,12 @@ export default function AddAppointmentModal({ onClose, onSave }) {
         setLoading(true);
 
         const { data: { user } } = await supabase.auth.getUser();
+        
+        // Generate a unique ID for the appointment
+        const appointmentId = Crypto.randomUUID();
+        
         const appointmentRecord = {
+            id: appointmentId, // Add unique ID
             patient_display_id: formData.patient_id,
             patient_name: formData.patient_name,
             reason: formData.reason,
@@ -94,6 +114,7 @@ export default function AddAppointmentModal({ onClose, onSave }) {
             notes: formData.notes,
             status: 'Scheduled',
             created_by: user?.id,
+            created_at: new Date().toISOString(), // Add timestamp
         };
 
         const netInfo = await NetInfo.fetch();
@@ -111,19 +132,23 @@ export default function AddAppointmentModal({ onClose, onSave }) {
                 // --- OFFLINE LOGIC ---
                 console.log("Offline: Saving appointment locally...");
                 await db.withTransactionAsync(async () => {
+                    // Insert into local appointments table
                     const statement = await db.prepareAsync(
-                        'INSERT INTO appointments (patient_display_id, patient_name, reason, date, time, status) VALUES (?, ?, ?, ?, ?, ?);'
+                        'INSERT INTO appointments (id, patient_display_id, patient_name, reason, date, time, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?);'
                     );
                     await statement.executeAsync([
+                        appointmentRecord.id,
                         appointmentRecord.patient_display_id, 
                         appointmentRecord.patient_name, 
                         appointmentRecord.reason,
                         appointmentRecord.date, 
                         appointmentRecord.time, 
-                        appointmentRecord.status
+                        appointmentRecord.status,
+                        appointmentRecord.notes || ''
                     ]);
                     await statement.finalizeAsync();
 
+                    // Add to sync queue for later
                     const syncStatement = await db.prepareAsync(
                         'INSERT INTO sync_queue (action, table_name, payload) VALUES (?, ?, ?);'
                     );

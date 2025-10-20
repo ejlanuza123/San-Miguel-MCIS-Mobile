@@ -5,7 +5,7 @@ import { supabase } from '../../services/supabase';
 import { useNotification } from '../../context/NotificationContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { logActivity } from '../../services/activityLogger';
-import CalendarPickerModal from './CalendarPickerModal';
+import CalendarPickerModal from '../common/CalendarPickerModal';
 import TimePickerModal from '../common/TimePickerModal';
 import { Picker } from '@react-native-picker/picker';
 import Svg, { Path } from 'react-native-svg';
@@ -26,9 +26,24 @@ export default function AddBnsAppointmentModal({ onClose, onSave }) {
 
     useEffect(() => {
         const fetchAllChildren = async () => {
-            const { data, error } = await supabase.from('child_records').select('id, child_id, first_name, last_name');
-            if (error) console.error("Error fetching children:", error);
-            else setAllChildren(data || []);
+            const netInfo = await NetInfo.fetch();
+            const db = getDatabase();
+            
+            if (netInfo.isConnected) {
+                // Online: Fetch from Supabase
+                const { data, error } = await supabase.from('child_records').select('id, child_id, first_name, last_name');
+                if (error) console.error("Error fetching children:", error);
+                else setAllChildren(data || []);
+            } else {
+                // Offline: Fetch from local database
+                try {
+                    const localChildren = await db.getAllAsync('SELECT id, child_id, first_name, last_name FROM child_records ORDER BY last_name ASC');
+                    setAllChildren(localChildren || []);
+                } catch (error) {
+                    console.error("Error fetching local children:", error);
+                    setAllChildren([]);
+                }
+            }
         };
         fetchAllChildren();
     }, []);
@@ -61,22 +76,37 @@ export default function AddBnsAppointmentModal({ onClose, onSave }) {
         }
         setLoading(true);
 
-        const { data: { user } } = await supabase.auth.getUser();
-        const appointmentRecord = {
-            patient_display_id: formData.patient_id,
-            patient_name: formData.patient_name,
-            reason: formData.reason,
-            date: formData.date,
-            time: formData.time,
-            notes: formData.notes || '',
-            status: 'Scheduled',
-            created_by: user?.id,
-        };
-
         const netInfo = await NetInfo.fetch();
         const db = getDatabase();
 
         try {
+            // Only try to get user if online
+            let user_id = null;
+            if (netInfo.isConnected) {
+                try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    user_id = user?.id;
+                } catch (authError) {
+                    console.log('Auth failed, continuing without user_id:', authError);
+                }
+            }
+
+            // Generate a unique ID for the appointment
+            const appointmentId = Crypto.randomUUID();
+            
+            const appointmentRecord = {
+                id: appointmentId, // Add unique ID
+                patient_display_id: formData.patient_id,
+                patient_name: formData.patient_name,
+                reason: formData.reason,
+                date: formData.date,
+                time: formData.time,
+                notes: formData.notes || '',
+                status: 'Scheduled',
+                created_by: user_id, // Will be null when offline
+                created_at: new Date().toISOString(), // Add timestamp
+            };
+
             if (netInfo.isConnected) {
                 // --- ONLINE LOGIC ---
                 const { error } = await supabase.from('appointments').insert([appointmentRecord]);
@@ -87,11 +117,17 @@ export default function AddBnsAppointmentModal({ onClose, onSave }) {
                 // --- OFFLINE LOGIC ---
                 await db.withTransactionAsync(async () => {
                     const statement = await db.prepareAsync(
-                        'INSERT INTO appointments (patient_display_id, patient_name, reason, date, time, status) VALUES (?, ?, ?, ?, ?, ?);'
+                        'INSERT INTO appointments (id, patient_display_id, patient_name, reason, date, time, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?);'
                     );
                     await statement.executeAsync([
-                        appointmentRecord.patient_display_id, appointmentRecord.patient_name, appointmentRecord.reason,
-                        appointmentRecord.date, appointmentRecord.time, appointmentRecord.status
+                        appointmentRecord.id,
+                        appointmentRecord.patient_display_id, 
+                        appointmentRecord.patient_name, 
+                        appointmentRecord.reason,
+                        appointmentRecord.date, 
+                        appointmentRecord.time, 
+                        appointmentRecord.status,
+                        appointmentRecord.notes
                     ]);
                     await statement.finalizeAsync();
 
@@ -104,7 +140,13 @@ export default function AddBnsAppointmentModal({ onClose, onSave }) {
                 addNotification('Appointment saved locally. Will sync when online.', 'success');
             }
 
-            await logActivity('New BNS Appointment', `For ${formData.patient_name}`);
+            // Log activity - make it offline safe
+            try {
+                await logActivity('New BNS Appointment', `For ${formData.patient_name}`);
+            } catch (logError) {
+                console.log('Activity logging failed:', logError);
+            }
+            
             onSave();
             onClose();
 

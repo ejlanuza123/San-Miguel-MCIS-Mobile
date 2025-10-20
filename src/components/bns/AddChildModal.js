@@ -10,7 +10,7 @@ import QRCode from 'react-native-qrcode-svg';
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from '../../services/database';
 import NetInfo from '@react-native-community/netinfo';
-import CalendarPickerModal from './CalendarPickerModal';
+import CalendarPickerModal from '../common/CalendarPickerModal';
 
 // --- ICONS & HELPER COMPONENTS ---
 const BackArrowIcon = () => <Svg width="24" height="24" viewBox="0 0 24 24" fill="none"><Path d="M15 18L9 12L15 6" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></Svg>;
@@ -104,6 +104,7 @@ export default function AddChildModal({ onClose, onSave, mode = 'add', initialDa
             const generateId = async () => {
                 setChildId('Loading...');
                 const netInfo = await NetInfo.fetch();
+                const db = getDatabase();
 
                 if (netInfo.isConnected) {
                     // ONLINE: Get the count from Supabase for a sequential ID
@@ -112,16 +113,26 @@ export default function AddChildModal({ onClose, onSave, mode = 'add', initialDa
                         .select('*', { count: 'exact', head: true });
 
                     if (error) {
-                        // Fallback to UUID if Supabase fails
-                        setChildId(`TEMP-C-${Crypto.randomUUID()}`);
+                        // Fallback to local count if Supabase fails
+                        const localChildren = await db.getAllAsync('SELECT * FROM child_records WHERE child_id LIKE "C-%"');
+                        const newId = `C-${String((localChildren.length || 0) + 1).padStart(3, '0')}`;
+                        setChildId(newId);
                     } else {
                         const newId = `C-${String((count || 0) + 1).padStart(3, '0')}`;
                         setChildId(newId);
                     }
                 } else {
-                    // OFFLINE: Generate a temporary unique ID
-                    const uniqueId = `TEMP-C-${Crypto.randomUUID()}`;
-                    setChildId(uniqueId);
+                    // OFFLINE: Get count from local database for C-000 format
+                    try {
+                        const localChildren = await db.getAllAsync('SELECT * FROM child_records WHERE child_id LIKE "C-%"');
+                        const newId = `C-${String(localChildren.length + 1).padStart(3, '0')}`;
+                        setChildId(newId);
+                    } catch (error) {
+                        console.error('Error counting local children:', error);
+                        // Only use TEMP as last resort
+                        const uniqueId = `TEMP-C-${Crypto.randomUUID()}`;
+                        setChildId(uniqueId);
+                    }
                 }
             };
             generateId();
@@ -137,22 +148,51 @@ export default function AddChildModal({ onClose, onSave, mode = 'add', initialDa
         }
         setLoading(true);
 
-        const [firstName, ...lastNameParts] = formData.child_name.split(' ');
-        const childRecord = {
-            child_id: childId,
-            first_name: firstName,
-            last_name: lastNameParts.join(' ') || '',
-            dob: formData.dob,
-            sex: formData.sex,
-            mother_name: formData.mother_name,
-            nutrition_status: 'H', // Default status
-            health_details: formData,
-        };
-
         const netInfo = await NetInfo.fetch();
         const db = getDatabase();
 
         try {
+            const [firstName, ...lastNameParts] = formData.child_name.split(' ');
+            
+            let finalChildId = childId;
+            
+            // Only try to get user if online
+            let user_id = null;
+            if (netInfo.isConnected) {
+                try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    user_id = user?.id;
+                } catch (authError) {
+                    console.log('Auth failed, continuing without user_id:', authError);
+                }
+                
+                // If online and have a TEMP ID, generate a proper C-000 ID
+                if (childId.startsWith('TEMP-C-')) {
+                    try {
+                        const { count, error } = await supabase
+                            .from('child_records')
+                            .select('*', { count: 'exact', head: true });
+                        if (!error) {
+                            finalChildId = `C-${String((count || 0) + 1).padStart(3, '0')}`;
+                        }
+                    } catch (error) {
+                        console.log('Supabase count failed, using local ID:', error);
+                    }
+                }
+            }
+
+            const childRecord = {
+                child_id: finalChildId,
+                first_name: firstName,
+                last_name: lastNameParts.join(' ') || '',
+                dob: formData.dob,
+                sex: formData.sex,
+                mother_name: formData.mother_name,
+                nutrition_status: 'H', // Default status
+                health_details: formData,
+                user_id: user_id, // Will be null when offline
+            };
+
             if (netInfo.isConnected) {
                 // --- ONLINE LOGIC ---
                 console.log("Online: Saving child record directly to Supabase...");
@@ -183,7 +223,14 @@ export default function AddChildModal({ onClose, onSave, mode = 'add', initialDa
                 addNotification('Child record saved locally. Will sync when online.', 'success');
             }
             
-            await logActivity('Add Child', `ID: ${childId}`);
+            // Log activity - make it offline safe
+            try {
+                await logActivity('Add Child', `ID: ${finalChildId}`);
+            } catch (logError) {
+                console.log('Activity logging failed:', logError);
+                // Don't fail the entire save if logging fails
+            }
+            
             onSave();
             onClose();
 
@@ -210,6 +257,7 @@ export default function AddChildModal({ onClose, onSave, mode = 'add', initialDa
                         handleChange('dob', date);
                         setIsCalendarOpen(false);
                     }}
+                    mode="any-other-mode"
                     disableWeekends={false}
                 />
             </Modal>

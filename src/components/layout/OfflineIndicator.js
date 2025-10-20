@@ -1,42 +1,46 @@
-// src/components/layout/OfflineIndicator.js
-
-import React, { useState, useEffect } from 'react'; // 1. Import useState and useEffect
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { syncOfflineData, checkSyncNotifications } from '../../services/syncService';
+import { useNotification } from '../../context/NotificationContext';
 
 export default function OfflineIndicator() {
   const isOffline = useNetworkStatus();
   const insets = useSafeAreaInsets();
+  const { addNotification } = useNotification();
   
-  // 2. Add state to control the visibility of the ONLINE indicator
   const [showOnlineIndicator, setShowOnlineIndicator] = useState(false);
 
-  // 3. Use an effect to manage the timer
   useEffect(() => {
     let timer;
     if (isOffline) {
-      // If offline, we don't need the online indicator, so ensure its state is false.
       setShowOnlineIndicator(false);
     } else {
-      // If we just came online, show the indicator immediately.
+      // When coming online, sync data and check notifications
+      const syncData = async () => {
+        try {
+          console.log('Device came online, syncing data...');
+          await syncOfflineData();
+          await checkSyncNotifications(addNotification);
+        } catch (error) {
+          console.error('Error during auto-sync:', error);
+        }
+      };
+      
+      syncData();
+      
       setShowOnlineIndicator(true);
-      // Then, set a timer to hide it after 3 seconds (3000 milliseconds).
       timer = setTimeout(() => {
         setShowOnlineIndicator(false);
       }, 3000);
     }
 
-    // Cleanup function: This will clear the timer if the user goes offline again
-    // before the 3 seconds are up.
     return () => clearTimeout(timer);
-  }, [isOffline]); // This effect runs every time the network status changes.
+  }, [isOffline, addNotification]);
 
-
-  // 4. Update the rendering logic
   if (isOffline) {
-    // If offline, always show the persistent offline banner
     return (
       <View style={[styles.container, { top: insets.top + 5 }]}>
         <Animated.View style={[styles.indicator, { backgroundColor: '#71717a' }]}>
@@ -47,25 +51,22 @@ export default function OfflineIndicator() {
   }
 
   if (showOnlineIndicator) {
-    // If online, only show the banner if `showOnlineIndicator` is true
     return (
       <View style={[styles.container, { top: insets.top + 5 }]}>
         <Animated.View 
           style={[styles.indicator, { backgroundColor: '#22c55e' }]}
           entering={FadeIn.duration(300)}
-          exiting={FadeOut.duration(1000)} // Fade out slowly
+          exiting={FadeOut.duration(1000)}
         >
-          <Text style={styles.text}>Internet Connected</Text>
+          <Text style={styles.text}>Internet Connected - Syncing data...</Text>
         </Animated.View>
       </View>
     );
   }
 
-  // If online and the timer has finished, render nothing.
   return null;
 }
 
-// Styles remain the same
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',

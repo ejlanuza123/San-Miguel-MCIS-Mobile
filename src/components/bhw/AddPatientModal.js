@@ -10,7 +10,8 @@ import QRCode from 'react-native-qrcode-svg';
 import { getDatabase } from '../../services/database';
 import NetInfo from '@react-native-community/netinfo';
 import * as Crypto from 'expo-crypto';
-import CalendarPickerModal from './CalendarPickerModal';
+import CalendarPickerModal from '../common/CalendarPickerModal';
+import { Picker } from '@react-native-picker/picker';
 
 // --- ICONS & HELPER COMPONENTS ---
 const BackArrowIcon = () => <Svg width="24" height="24" viewBox="0 0 24 24" fill="none"><Path d="M15 18L9 12L15 6" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></Svg>;
@@ -88,6 +89,21 @@ const Step2 = ({ formData, handleChange, setIsCalendarOpen, setCalendarField }) 
         <TextInput style={styles.input} placeholder="Age of Menarche" placeholderTextColor="#9ca3af" value={formData.age_of_menarche} onChangeText={t => handleChange('age_of_menarche', t)} keyboardType="numeric" />
         <TextInput style={styles.input} placeholder="Amount of Bleeding (Scanty/Moderate/Heavy)" placeholderTextColor="#9ca3af" value={formData.bleeding_amount} onChangeText={t => handleChange('bleeding_amount', t)} />
         <TextInput style={styles.input} placeholder="Duration of Menstruation (days)" placeholderTextColor="#9ca3af" value={formData.menstruation_duration} onChangeText={t => handleChange('menstruation_duration', t)} keyboardType="numeric" />
+        <View style={styles.pickerContainer}>
+            <Text style={styles.sectionTitle}>Risk Level</Text>
+            <View style={styles.pickerWrapper}>
+                <Picker
+                    selectedValue={formData.risk_level}
+                    onValueChange={(itemValue) => handleChange('risk_level', itemValue)}
+                    style={styles.picker}
+                >
+                    <Picker.Item label="Select Risk Level" value="" />
+                    <Picker.Item label="Normal" value="NORMAL" />
+                    <Picker.Item label="Mid Risk" value="MID RISK" />
+                    <Picker.Item label="High Risk" value="HIGH RISK" />
+                </Picker>
+            </View>
+        </View>
     </>
 );
 
@@ -133,22 +149,21 @@ export default function AddPatientModal({ onClose, onSave, mode = 'add', initial
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [calendarField, setCalendarField] = useState('');
 
-    const handleChange = (name, value) => setFormData(prev => ({ ...prev, [name]: value }));
-
-    useEffect(() => {
-        if (formData.dob) {
-            const birthDate = new Date(formData.dob);
-            if (!isNaN(birthDate.getTime())) {
-                const today = new Date();
-                let age = today.getFullYear() - birthDate.getFullYear();
-                const monthDifference = today.getMonth() - birthDate.getMonth();
-                if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
-                    age--;
-                }
-                handleChange('age', age.toString());
-            }
+    const calculateAge = (dob) => {
+        if (!dob) return '';
+        
+        const birthDate = new Date(dob);
+        const today = new Date();
+        
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
         }
-    }, [formData.dob]);
+        
+        return age.toString();
+    };
 
     useEffect(() => {
         if (mode === 'edit' && initialData) {
@@ -159,29 +174,59 @@ export default function AddPatientModal({ onClose, onSave, mode = 'add', initial
                 last_name: initialData.last_name, first_name: initialData.first_name,
                 middle_name: initialData.middle_name, age: initialData.age?.toString(),
                 contact_no: initialData.contact_no,
+                dob: initialData.medical_history?.dob || '' // Add this line
             }));
         } else {
             const generateId = async () => {
                 setPatientId('Loading...');
                 const netInfo = await NetInfo.fetch();
+                const db = getDatabase();
+                
                 if (netInfo.isConnected) {
+                    // Online: Get count from Supabase
                     const { count, error } = await supabase
                         .from('patients')
                         .select('*', { count: 'exact', head: true });
                     if (error) {
-                        setPatientId(`TEMP-${Crypto.randomUUID()}`);
+                        // Fallback to local count if Supabase fails
+                        const localPatients = await db.getAllAsync('SELECT * FROM patients WHERE patient_id LIKE "P-%"');
+                        const newId = `P-${String((localPatients.length || 0) + 1).padStart(3, '0')}`;
+                        setPatientId(newId);
                     } else {
                         const newId = `P-${String((count || 0) + 1).padStart(3, '0')}`;
                         setPatientId(newId);
                     }
                 } else {
-                    const uniqueId = `TEMP-${Crypto.randomUUID()}`;
-                    setPatientId(uniqueId);
+                    // Offline: Get count from local database - ONLY count P- patients
+                    try {
+                        const localPatients = await db.getAllAsync('SELECT * FROM patients WHERE patient_id LIKE "P-%"');
+                        const newId = `P-${String(localPatients.length + 1).padStart(3, '0')}`;
+                        setPatientId(newId);
+                    } catch (error) {
+                        console.error('Error counting local patients:', error);
+                        // Only use TEMP as last resort
+                        const uniqueId = `TEMP-${Crypto.randomUUID()}`;
+                        setPatientId(uniqueId);
+                    }
                 }
             };
             generateId();
         }
     }, [mode, initialData]);
+
+    const handleChange = (name, value) => {
+        setFormData(prev => {
+            const newFormData = { ...prev, [name]: value };
+            
+            // Automatically calculate age when date of birth is set
+            if (name === 'dob' && value) {
+                const calculatedAge = calculateAge(value);
+                newFormData.age = calculatedAge;
+            }
+            
+            return newFormData;
+        });
+    };
 
     const handleSave = async () => {
         // Basic validation
@@ -191,35 +236,64 @@ export default function AddPatientModal({ onClose, onSave, mode = 'add', initial
         }
         setLoading(true);
 
-        const { data: { user } } = await supabase.auth.getUser();
-
-        // Parse the address into purok and street
-        let purok = formData.address || '';
-        let street = '';
-        if (formData.address?.includes(',')) {
-            const parts = formData.address.split(',');
-            purok = parts[0]?.trim();
-            street = parts.slice(1).join(',').trim();
-        }
-
-        // Separate the main table data from the medical history JSON
-        const patientRecord = {
-            patient_id: patientId, // The generated ID
-            first_name: formData.first_name,
-            last_name: formData.last_name,
-            middle_name: formData.middle_name,
-            age: parseInt(formData.age, 10) || null,
-            contact_no: formData.contact_no,
-            purok: purok, // <-- ADDED
-            street: street, // <-- ADDED
-            user_id: user?.id,
-            medical_history: formData // Store the entire form state in the JSONB field
-        };
-
         const netInfo = await NetInfo.fetch();
         const db = getDatabase();
 
         try {
+            // Parse the address into purok and street
+            let purok = formData.address || '';
+            let street = '';
+            if (formData.address?.includes(',')) {
+                const parts = formData.address.split(',');
+                purok = parts[0]?.trim();
+                street = parts.slice(1).join(',').trim();
+            }
+
+            let finalPatientId = patientId;
+            
+            // Only try to get user if online
+            let user_id = null;
+            if (netInfo.isConnected) {
+                try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    user_id = user?.id;
+                } catch (authError) {
+                    console.log('Auth failed, continuing without user_id:', authError);
+                }
+                
+                // If online and have a TEMP ID, generate a proper P-000 ID
+                if (patientId.startsWith('TEMP-')) {
+                    try {
+                        const { count, error } = await supabase
+                            .from('patients')
+                            .select('*', { count: 'exact', head: true });
+                        if (!error) {
+                            finalPatientId = `P-${String((count || 0) + 1).padStart(3, '0')}`;
+                        }
+                    } catch (error) {
+                        console.log('Supabase count failed, using local ID:', error);
+                    }
+                }
+            }
+
+            // Use the selected risk level from the form instead of calculating
+            const riskLevel = formData.risk_level || 'NORMAL'; // Default to NORMAL if not selected
+
+            // Separate the main table data from the medical history JSON
+            const patientRecord = {
+                patient_id: finalPatientId,
+                first_name: formData.first_name,
+                last_name: formData.last_name,
+                middle_name: formData.middle_name,
+                age: parseInt(formData.age, 10) || null,
+                contact_no: formData.contact_no,
+                purok: purok,
+                street: street,
+                risk_level: riskLevel,
+                user_id: user_id, // Will be null when offline
+                medical_history: formData
+            };
+
             if (netInfo.isConnected) {
                 console.log("Online: Saving patient directly to Supabase...");
                 const { error } = await supabase.from('patients').insert([patientRecord]);
@@ -231,8 +305,7 @@ export default function AddPatientModal({ onClose, onSave, mode = 'add', initial
                 await db.withTransactionAsync(async () => {
                     // Insert into local patients table
                     const statement = await db.prepareAsync(
-                        // UPDATED: Added purok and street columns
-                        'INSERT INTO patients (patient_id, first_name, last_name, age, contact_no, purok, street, medical_history) VALUES (?, ?, ?, ?, ?, ?, ?, ?);'
+                        'INSERT INTO patients (patient_id, first_name, last_name, age, contact_no, purok, street, risk_level, medical_history, is_synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);'
                     );
                     await statement.executeAsync([
                         patientRecord.patient_id,
@@ -240,9 +313,11 @@ export default function AddPatientModal({ onClose, onSave, mode = 'add', initial
                         patientRecord.last_name,
                         patientRecord.age,
                         patientRecord.contact_no,
-                        patientRecord.purok, // <-- ADDED
-                        patientRecord.street, // <-- ADDED
-                        JSON.stringify(patientRecord.medical_history)
+                        patientRecord.purok,
+                        patientRecord.street,
+                        patientRecord.risk_level,
+                        JSON.stringify(patientRecord.medical_history),
+                        0 // is_synced = false for offline records
                     ]);
                     await statement.finalizeAsync();
 
@@ -256,7 +331,14 @@ export default function AddPatientModal({ onClose, onSave, mode = 'add', initial
                 addNotification('Patient saved locally. Will sync when online.', 'success');
             }
 
-            await logActivity('New Patient Added', `Patient: ${formData.first_name} ${formData.last_name}`);
+            // Log activity - make it offline safe
+            try {
+                await logActivity('New Patient Added', `Patient: ${formData.first_name} ${formData.last_name}`);
+            } catch (logError) {
+                console.log('Activity logging failed:', logError);
+                // Don't fail the entire save if logging fails
+            }
+
             onSave(); // This will trigger a re-fetch on the main screen
             onClose();
 
@@ -282,6 +364,7 @@ export default function AddPatientModal({ onClose, onSave, mode = 'add', initial
                         handleChange(calendarField, date);
                         setIsCalendarOpen(false);
                     }}
+                    mode={calendarField === 'dob' ? 'birthday' : 'any-other-mode'}
                     disableWeekends={false}
                 />
             </Modal>
@@ -360,4 +443,25 @@ const styles = StyleSheet.create({
     navButtonText: { fontWeight: 'bold', color: '#374151' },
     saveButton: { paddingVertical: 12, paddingHorizontal: 40, backgroundColor: '#3b82f6', borderRadius: 10 },
     saveButtonText: { fontWeight: 'bold', color: 'white' },
+    pickerContainer: {
+        marginBottom: 10,
+    },
+    pickerLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#4b5563',
+        marginBottom: 8,
+    },
+    pickerWrapper: {
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        borderRadius: 10,
+        backgroundColor: 'white',
+        overflow: 'hidden',
+    },
+    picker: {
+        height: 50,
+        width: '100%',
+        color: '#111827',
+    },
 });

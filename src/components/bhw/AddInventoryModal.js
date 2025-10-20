@@ -5,7 +5,7 @@ import { supabase } from '../../services/supabase';
 import { useNotification } from '../../context/NotificationContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { logActivity } from '../../services/activityLogger';
-import CalendarPickerModal from './CalendarPickerModal'; // Make sure this path is correct
+import CalendarPickerModal from '../common/CalendarPickerModal';// Make sure this path is correct
 import Svg, { Path } from 'react-native-svg';
 
 const CalendarIcon = () => <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"><Path d="M8 7V3M16 4V3M7 11H17M5 21H19C20.1046 21 21 20.1046 21 19V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7V19C3 20.1046 3.89543 21 5 21Z" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></Svg>;
@@ -71,6 +71,7 @@ export default function AddInventoryModal({ onClose, onSave, mode = 'add', initi
                 <CalendarPickerModal
                     onClose={() => setIsCalendarOpen(false)}
                     onDateSelect={(date) => handleChange('expiry_date', date)}
+                    mode="any-other-mode"
                     disableWeekends={false} // Allow selecting weekends for expiry dates
                 />
             </Modal>
