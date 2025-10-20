@@ -1,12 +1,25 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import Svg, { Path } from 'react-native-svg';
+import React from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  Modal,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import Svg, { Path } from "react-native-svg";
 
 const BackArrowIcon = () => (
   <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-    <Path d="M15 18L9 12L15 6" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    <Path
+      d="M15 18L9 12L15 6"
+      stroke="#333"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </Svg>
 );
 
@@ -47,11 +60,11 @@ const TrashIcon = () => (
 );
 
 const getIconForType = (type) => {
-  if (type.includes('inventory_alert')) return <AlertIcon />;
-  if (type.includes('due_soon')) return <ClockIcon />;
-  if (type.includes('appointment')) return <CalendarIcon />;
-  if (type.includes('user_request')) return <CheckIcon />;
-  if (type.includes('report')) return <ReportIcon />;
+  if (type.includes("inventory_alert")) return <AlertIcon />;
+  if (type.includes("due_soon")) return <ClockIcon />;
+  if (type.includes("appointment")) return <CalendarIcon />;
+  if (type.includes("user_request")) return <CheckIcon />;
+  if (type.includes("report")) return <ReportIcon />;
   return <AlertIcon />;
 };
 
@@ -67,82 +80,79 @@ export default function NotificationModal({
   const navigation = useNavigation();
 
   const handleNotificationPress = (item) => {
-    console.log('Notification pressed:', item.id, item.type);
-    
+    console.log("Notification pressed:", item.id, item.type);
+
     // First mark as read
     if (onNotificationPress) {
       onNotificationPress(item);
     }
-    
+
     // Handle navigation based on notification type
-    if (item.type.includes('inventory_alert')) {
+    if (item.type.includes("inventory_alert")) {
       // For inventory notifications, navigate to Inventory tab
-      console.log('Redirecting to Inventory screen');
-      navigation.navigate('Inventory');
-    } else if (item.type.includes('appointment')) {
+      console.log("Redirecting to Inventory screen");
+      navigation.navigate("Inventory");
+    } else if (item.type.includes("appointment")) {
       // For appointment notifications
-      if (item.role === 'USER/MOTHER/GUARDIAN') {
-        navigation.navigate('Appointment');
+      if (item.role === "USER/MOTHER/GUARDIAN") {
+        navigation.navigate("Appointment");
       } else {
-        navigation.navigate('Appointment');
+        navigation.navigate("Appointment");
       }
-    } else if (item.type.includes('patient_due_soon')) {
+    } else if (item.type.includes("patient_due_soon")) {
       // For patient notifications
-      navigation.navigate('Patient');
-    } else if (item.type.includes('child_checkup_due')) {
+      navigation.navigate("Patient");
+    } else if (item.type.includes("child_checkup_due")) {
       // For child notifications
-      navigation.navigate('Patient');
-    } else if (item.type.includes('report')) {
+      navigation.navigate("Patient");
+    } else if (item.type.includes("report")) {
       // For report notifications
-      navigation.navigate('Reports');
+      navigation.navigate("Reports");
     } else {
       // Default to dashboard
-      if (item.role === 'USER/MOTHER/GUARDIAN') {
-        navigation.navigate('Dashboard');
+      if (item.role === "USER/MOTHER/GUARDIAN") {
+        navigation.navigate("Dashboard");
       } else {
-        navigation.navigate('Dashboard');
+        navigation.navigate("Dashboard");
       }
     }
-    
+
     onClose();
   };
 
   const NotificationItem = ({ item }) => (
-    <TouchableOpacity 
-      style={[
-        styles.itemContainer,
-        !item.is_read && styles.unreadItem
-      ]} 
+    <TouchableOpacity
+      style={[styles.itemContainer, !item.is_read && styles.unreadItem]}
       onPress={() => handleNotificationPress(item)}
     >
       <View style={styles.statusIndicator}>
         {!item.is_read && <View style={styles.unreadDot} />}
       </View>
-      
-      <View style={styles.iconContainer}>
-        {getIconForType(item.type)}
-      </View>
-      
+
+      <View style={styles.iconContainer}>{getIconForType(item.type)}</View>
+
       <View style={styles.textContainer}>
-        <Text style={[
-          styles.itemTitle,
-          !item.is_read && styles.unreadTitle
-        ]}>
-          {item.type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+        <Text style={[styles.itemTitle, !item.is_read && styles.unreadTitle]}>
+          {item.type
+            .replace(/_/g, " ")
+            .replace(/\b\w/g, (l) => l.toUpperCase())}
         </Text>
-        <Text style={[
-          styles.itemMessage,
-          !item.is_read && styles.unreadMessage
-        ]}>
+        <Text
+          style={[styles.itemMessage, !item.is_read && styles.unreadMessage]}
+        >
           {item.message}
         </Text>
         <Text style={styles.itemTime}>
-          {new Date(item.created_at).toLocaleDateString()} • {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {new Date(item.created_at).toLocaleDateString()} •{" "}
+          {new Date(item.created_at).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
         </Text>
       </View>
-      
-      <TouchableOpacity 
-        onPress={() => onDeleteOne(item.id)} 
+
+      <TouchableOpacity
+        onPress={() => onDeleteOne(item.id)}
         style={styles.deleteButton}
       >
         <TrashIcon />
@@ -150,7 +160,7 @@ export default function NotificationModal({
     </TouchableOpacity>
   );
 
-  const unreadCount = notifications.filter(item => !item.is_read).length;
+  const unreadCount = notifications.filter((item) => !item.is_read).length;
 
   return (
     <Modal visible={isVisible} animationType="slide" onRequestClose={onClose}>
@@ -167,11 +177,16 @@ export default function NotificationModal({
               </View>
             )}
           </View>
-          <TouchableOpacity onPress={onMarkAllRead} disabled={unreadCount === 0}>
-            <Text style={[
-              styles.markReadText,
-              unreadCount === 0 && styles.markReadDisabled
-            ]}>
+          <TouchableOpacity
+            onPress={onMarkAllRead}
+            disabled={unreadCount === 0}
+          >
+            <Text
+              style={[
+                styles.markReadText,
+                unreadCount === 0 && styles.markReadDisabled,
+              ]}
+            >
               Mark all read
             </Text>
           </TouchableOpacity>
@@ -180,7 +195,9 @@ export default function NotificationModal({
         <FlatList
           data={notifications}
           renderItem={({ item }) => <NotificationItem item={item} />}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item, index) =>
+            item?.id?.toString() ?? `fallback-${index}`
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No notifications yet</Text>
@@ -193,7 +210,9 @@ export default function NotificationModal({
         {notifications.length > 0 && (
           <View style={styles.footer}>
             <TouchableOpacity onPress={onDeleteAll} style={styles.footerButton}>
-              <Text style={styles.footerButtonText}>Clear All Notifications</Text>
+              <Text style={styles.footerButtonText}>
+                Clear All Notifications
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -203,149 +222,149 @@ export default function NotificationModal({
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#f8fafc' 
+  container: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 16,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderBottomWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: "#e2e8f0",
   },
   backButton: {
     padding: 4,
   },
   headerTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
-  headerTitle: { 
-    fontSize: 18, 
-    fontWeight: 'bold',
-    color: '#1e293b'
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1e293b",
   },
   unreadBadge: {
-    backgroundColor: '#dc2626',
+    backgroundColor: "#dc2626",
     borderRadius: 12,
     minWidth: 20,
     height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 6,
   },
-  unreadBadgeText: { 
-    color: 'white', 
-    fontSize: 12, 
-    fontWeight: 'bold' 
+  unreadBadgeText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
   },
-  markReadText: { 
-    color: '#3b82f6', 
-    fontWeight: '600',
+  markReadText: {
+    color: "#3b82f6",
+    fontWeight: "600",
     fontSize: 14,
   },
   markReadDisabled: {
-    color: '#9ca3af',
+    color: "#9ca3af",
   },
   listContent: {
     flexGrow: 1,
     padding: 8,
   },
   itemContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     padding: 16,
     marginVertical: 4,
     marginHorizontal: 8,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
   },
   unreadItem: {
-    backgroundColor: '#f0f9ff',
+    backgroundColor: "#f0f9ff",
     borderLeftWidth: 3,
-    borderLeftColor: '#3b82f6',
+    borderLeftColor: "#3b82f6",
   },
   statusIndicator: {
     width: 24,
-    alignItems: 'center',
+    alignItems: "center",
     paddingTop: 2,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#3b82f6',
+    backgroundColor: "#3b82f6",
   },
-  iconContainer: { 
+  iconContainer: {
     marginRight: 12,
     marginTop: 2,
   },
-  textContainer: { 
+  textContainer: {
     flex: 1,
     marginRight: 8,
   },
-  itemTitle: { 
-    fontWeight: '600', 
-    fontSize: 15, 
-    color: '#475569',
+  itemTitle: {
+    fontWeight: "600",
+    fontSize: 15,
+    color: "#475569",
     marginBottom: 4,
   },
   unreadTitle: {
-    color: '#1e293b',
-    fontWeight: '700',
+    color: "#1e293b",
+    fontWeight: "700",
   },
-  itemMessage: { 
-    color: '#64748b', 
+  itemMessage: {
+    color: "#64748b",
     fontSize: 14,
     lineHeight: 18,
     marginBottom: 6,
   },
   unreadMessage: {
-    color: '#334155',
-    fontWeight: '500',
+    color: "#334155",
+    fontWeight: "500",
   },
-  itemTime: { 
-    fontSize: 12, 
-    color: '#94a3b8',
+  itemTime: {
+    fontSize: 12,
+    color: "#94a3b8",
   },
-  deleteButton: { 
+  deleteButton: {
     padding: 8,
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingVertical: 60,
   },
-  emptyText: { 
-    fontSize: 16, 
-    color: '#64748b', 
-    fontWeight: '600',
+  emptyText: {
+    fontSize: 16,
+    color: "#64748b",
+    fontWeight: "600",
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: "#94a3b8",
   },
-  footer: { 
-    padding: 16, 
-    backgroundColor: 'white',
-    borderTopWidth: 1, 
-    borderColor: '#e2e8f0',
+  footer: {
+    padding: 16,
+    backgroundColor: "white",
+    borderTopWidth: 1,
+    borderColor: "#e2e8f0",
   },
-  footerButton: { 
-    padding: 16, 
-    borderRadius: 12, 
-    backgroundColor: '#fef2f2',
-    alignItems: 'center',
+  footerButton: {
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: "#fef2f2",
+    alignItems: "center",
   },
-  footerButtonText: { 
-    color: '#dc2626', 
-    fontWeight: '600', 
+  footerButtonText: {
+    color: "#dc2626",
+    fontWeight: "600",
     fontSize: 16,
   },
 });
